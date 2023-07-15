@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <vector>
 #include <cmath>
@@ -7,21 +8,28 @@
 #include "model.h"
 #include "raymath.h"
 
-const int windowWidth = 450;
-const int windowHeight = 450;
+const int window_width = 512;
+const int window_height = 512;
 
-void draw_pixel(int x, int y, Image &image, Color color) {
-    Color *pixels = (Color *)image.data;
-    pixels[y * windowWidth + x] = color;
-}
 
 void fill_image(Image &image, Color color) {
     Color *pixels = (Color *)image.data;
-    for (int y = 0; y < windowHeight; y++) {
-        for (int x = 0; x < windowWidth; x++) {
-             pixels[y * windowWidth + x] = color;
+    for (int y = 0; y < image.height; y++) {
+        for (int x = 0; x < image.width; x++) {
+             pixels[y * image.width + x] = color;
         }
     }
+}
+
+bool is_top_left(Vector2 s, Vector2 e) {
+    Vector2 diff = {e.x - s.x, e.y - s.y};
+
+    return diff.y > 0 || diff.y == 0 && diff.x > 0;
+}
+
+void draw_pixel(int x, int y, Image &image, Color color) {
+    Color *pixels = (Color *)image.data;
+    pixels[y * image.width + x] = color;
 }
 
 void draw_line(Vector2 p0, Vector2 p1, Image &image, Color color) {
@@ -46,8 +54,8 @@ void draw_line(Vector2 p0, Vector2 p1, Image &image, Color color) {
     int dx = x1 - x0;
     int dy = y1 - y0;
 
-    float yStep = std::abs(dy/float(dx));
-    float yOverflow = 0; 
+    float y_step = std::abs(dy/float(dx));
+    float y_overflow = 0; 
     int y = y0; 
 
     for (int x = x0; x <= x1; x++) {
@@ -57,13 +65,13 @@ void draw_line(Vector2 p0, Vector2 p1, Image &image, Color color) {
             draw_pixel(x, y, image, color);
         }
 
-        yOverflow += yStep;
+        y_overflow += y_step;
 
         // When yOverflow exceeds 0.5, we've accumulated enough
         // fractional yStep to adjust the y coordinate.
-        if (yOverflow > .5) {
+        if (y_overflow > .5) {
             y += (y1 > y0 ? 1 : -1);
-            yOverflow -= 1.;
+            y_overflow -= 1.;
         }
     }
 }
@@ -74,28 +82,51 @@ void draw_triangle_wireframe(Vector2 p0, Vector2 p1, Vector2 p2, Image &image, C
     draw_line(p2, p0, image, color);
 }
 
-void draw_triangle(Vector2 p0, Vector2 p1, Vector2 p2, Image &image, Color color) {
-    if (p0.y > p1.y) { std::swap(p0, p1); }
-    if (p0.y > p2.y) { std::swap(p0, p2); }
-    if (p1.y > p2.y) { std::swap(p1, p2); }
+std::pair<Vector2, Vector2> triangle_bb(Vector2 &p0, Vector2 &p1, Vector2 &p2, int canvasHeight, int canvasWidth) {
+    float x_start = std::max(0.f, std::min(p0.x, std::min(p1.x, p2.x)));
+    float x_end = std::min((float)canvasWidth, std::max(p0.x, std::max(p1.x, p2.x)));
+    float y_start = std::max(0.f, std::min(p0.y, std::min(p1.y, p2.y)));
+    float y_end = std::min((float)canvasHeight, std::max(p0.y, std::max(p1.y, p2.y)));
 
-    int triangle_height = p2.y - p0.y;
+    return { Vector2{x_start, y_start}, Vector2{ x_end, y_end }};
+}
 
-    for (int i = 0; i < triangle_height; i++) {
-        bool isUpperSegment = i > p1.y - p0.y || p1.y== p0.y; 
-        int segment_height = isUpperSegment ? p2.y-p1.y : p1.y - p0.y; 
-        float triangle_progress = (float)i / triangle_height; 
-        float segment_progress  = (float)(i - (isUpperSegment ? p1.y- p0.y : 0)) / segment_height;
+bool is_inside_triangle(int x, int y, Vector2 &p0, Vector2 &p1, Vector2 &p2) {
+    int bias0 = is_top_left(p0, p1) ? 0 : -1;
+    int bias1 = is_top_left(p1, p2) ? 0 : -1;
+    int bias2 = is_top_left(p2, p0) ? 0 : -1;
 
-        Vector2 A = Vector2Add(p0, Vector2Scale(Vector2Subtract(p2, p0), triangle_progress));
-        Vector2 B = isUpperSegment ?
-            Vector2Add(p1, Vector2Scale(Vector2Subtract(p2, p1), segment_progress)) :
-            Vector2Add(p0, Vector2Scale(Vector2Subtract(p1, p0), segment_progress));
+    Vector2 edge = Vector2Subtract(p0, p1);
+    Vector2 p = Vector2Subtract(p0, {(float)x, (float)y});
+    bool res = Vector3CrossProduct({edge.x, edge.y}, {p.x, p.y}).z + bias0 >= 0;
 
-        if (A.x > B.x) std::swap(A, B); 
-        for (int j = A.x; j <= B.x; j++) { 
-            draw_pixel(j, p0.y + i, image, color);
-        } 
+    edge = Vector2Subtract(p1, p2);
+    p = Vector2Subtract(p1, {(float)x, (float)y});
+    res = res && Vector3CrossProduct({edge.x, edge.y}, {p.x, p.y}).z + bias1 >= 0;
+
+    edge = Vector2Subtract(p2, p0);
+    p = Vector2Subtract(p2, {(float)x, (float)y});
+    res = res && Vector3CrossProduct({edge.x, edge.y}, {p.x, p.y}).z + bias2 >= 0;
+
+    return res;
+}
+
+// bool is_inside_triangle_barycentric(int x, int y, Vector2 &p0, Vector2 &p1, Vector2 &p2) {
+//     return false;
+// }
+
+void draw_triangle(Vector2 &p0, Vector2 &p1, Vector2 &p2, Image &image, Color color) {
+    std::pair<Vector2, Vector2> bb = triangle_bb(p0, p1, p2, image.height, image.width);
+    Vector2 start = bb.first;
+    Vector2 end = bb.second;
+    
+    
+    for (int x = start.x; x <= end.x; ++x) {
+        for (int y = start.y; y <= end.y; ++y) {
+            if (is_inside_triangle(x, y, p0, p1, p2)) {
+                draw_pixel(x, y, image, color);
+            }
+        }
     }
 }
 
@@ -117,38 +148,52 @@ namespace chapters {
     }
 
     void triangles(Image &image) {
-        Vector2 t0[3] = {Vector2 {10, 70}, Vector2 {50, 160}, Vector2 {70, 80}}; 
-        Vector2 t1[3] = {Vector2 {180, 50}, Vector2 {150, 1}, Vector2 {70, 180}}; 
-        Vector2 t2[3] = {Vector2 {180, 150}, Vector2 {120, 160}, Vector2{130, 180}}; 
+        Vector2 vertices[5] = {
+            Vector2 { 40, 40 },
+            Vector2 { 80, 40 },
+            Vector2 { 40, 80 },
+            Vector2 { 90, 90 },
+            Vector2 { 75, 20 },
+        };
 
-        draw_triangle(t0[0], t0[1], t0[2], image, RED); 
-        draw_triangle(t1[0], t1[1], t1[2], image, WHITE); 
-        draw_triangle(t2[0], t2[1], t2[2], image, GREEN); 
+        Vector2 v0 = vertices[0];
+        Vector2 v1 = vertices[1];
+        Vector2 v2 = vertices[2];
+        Vector2 v3 = vertices[3];
+        Vector2 v4 = vertices[4];
+
+        draw_triangle(v0, v1, v2, image, Color{255, 0, 255, 255});
+        draw_triangle(v3, v2, v1, image, Color{100, 25, 255, 255});
+        draw_triangle(v4, v1, v0, image, Color{24, 0, 255, 255});
     }
-
 }
 
 void draw_model(tinyrenderer::Model *model, Image &image) {
     for (int i=0; i<model->nfaces(); i++) {
         std::vector<int> face = model->face(i);
+
+        int half_width = floor(image.width / 2);
+        int half_height = floor(image.height / 2);
+
         for (int j=0; j<3; j++) {
             Vector3 v0 = model->vert(face[j]);
             Vector3 v1 = model->vert(face[(j+1)%3]);
-            float x0 = (v0.x+1.)*windowWidth/2.;
-            float y0 = (v0.y+1.)*windowHeight/2.;
-            float x1 = (v1.x+1.)*windowWidth/2.;
-            float y1 = (v1.y+1.)*windowHeight/2.;
 
-            draw_line(Vector2{x0, y0}, Vector2{ x1, y1 }, image, WHITE);
+            float x0 = (v0.x + 1.) * (half_width);
+            float y0 = (v0.y + 1.) * (half_height);
+            float x1 = (v1.x + 1.) * (half_width);
+            float y1 = (v1.y + 1.) * (half_height);
+
+            draw_line(Vector2{ x0, y0 }, Vector2{ x1, y1 }, image, WHITE);
         }
     }
 }
 
 int main(int argc, char** argv) {
-    InitWindow(windowWidth, windowHeight, "tinyrenderer");
+    InitWindow(window_width, window_height, "tinyrenderer");
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
-    Image image = GenImageColor(windowWidth, windowHeight, RAYWHITE);
+    Image image = GenImageColor(128, 128, BLACK);
     Texture2D texture = LoadTextureFromImage(image);   // Convert Image to Texture2D
     tinyrenderer::Model *model = new tinyrenderer::Model("assets/african_head.obj");
 
@@ -157,8 +202,8 @@ int main(int argc, char** argv) {
 
         // chapters::lines(image);
         // chapters::triangle_wireframe(image);
-        // chapters::triangles(image);
-        draw_model(model, image);
+        chapters::triangles(image);
+        // draw_model(model, image);
 
         ImageFlipVertical(&image);
         
@@ -167,7 +212,12 @@ int main(int argc, char** argv) {
         BeginDrawing();
         ClearBackground(RAYWHITE);
 
-        DrawTexture(texture, windowWidth/2 - texture.width/2, windowHeight/2 - texture.height/2, WHITE);
+        // Set the source rectangle to be the entire texture
+        Rectangle srcRec = { 0.0f, 0.0f, (float)texture.width, (float)texture.height };
+        // Set the destination rectangle to be the entire window
+        Rectangle dstRec = { 0, 0, (float)window_width, (float)window_height };
+        // Draw the texture scaled to the window size
+        DrawTexturePro(texture, srcRec, dstRec, { 0.0f, 0.0f }, 0.0f, WHITE);
 
         EndDrawing();
     }
