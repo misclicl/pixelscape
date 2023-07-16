@@ -91,46 +91,72 @@ std::pair<Vector2, Vector2> triangle_bb(Vector2 &p0, Vector2 &p1, Vector2 &p2, i
     return { Vector2{x_start, y_start}, Vector2{ x_end, y_end }};
 }
 
-bool is_inside_triangle(int x, int y, Vector2 &p0, Vector2 &p1, Vector2 &p2) {
-    int bias0 = is_top_left(p0, p1) ? 0 : -1;
-    int bias1 = is_top_left(p1, p2) ? 0 : -1;
-    int bias2 = is_top_left(p2, p0) ? 0 : -1;
-
-    Vector2 edge = Vector2Subtract(p0, p1);
-    Vector2 p = Vector2Subtract(p0, {(float)x, (float)y});
-    bool res = Vector3CrossProduct({edge.x, edge.y}, {p.x, p.y}).z + bias0 >= 0;
-
-    edge = Vector2Subtract(p1, p2);
-    p = Vector2Subtract(p1, {(float)x, (float)y});
-    res = res && Vector3CrossProduct({edge.x, edge.y}, {p.x, p.y}).z + bias1 >= 0;
-
-    edge = Vector2Subtract(p2, p0);
-    p = Vector2Subtract(p2, {(float)x, (float)y});
-    res = res && Vector3CrossProduct({edge.x, edge.y}, {p.x, p.y}).z + bias2 >= 0;
-
-    return res;
+float edge_cross(const Vector2 &a, const Vector2 &b, const Vector2 &c) {
+    return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 }
 
-// bool is_inside_triangle_barycentric(int x, int y, Vector2 &p0, Vector2 &p1, Vector2 &p2) {
-//     return false;
-// }
+std::tuple<float, float, float> calculate_barycentric_weights(int x, int y, Vector2 &v0, Vector2 &v1, Vector2 &v2) {
+    int bias0 = is_top_left(v0, v1) ? 0 : -1;
+    int bias1 = is_top_left(v1, v2) ? 0 : -1;
+    int bias2 = is_top_left(v2, v0) ? 0 : -1;
 
-void draw_triangle(Vector2 &p0, Vector2 &p1, Vector2 &p2, Image &image, Color color) {
-    std::pair<Vector2, Vector2> bb = triangle_bb(p0, p1, p2, image.height, image.width);
+    Vector2 p = {(float)x, (float)y};
+
+    float w0 = edge_cross(v1, v2, p) + bias0;
+    float w1 = edge_cross(v2, v0, p) + bias1;
+    float w2 = edge_cross(v0, v1, p) + bias2;
+
+    return { w0, w1, w2 };
+}
+
+void draw_triangle(Vector2 &v0, Vector2 &v1, Vector2 &v2, Color &c0, Color &c1, Color &c2, Image &image) {
+    std::pair<Vector2, Vector2> bb = triangle_bb(v0, v1, v2, image.height, image.width);
     Vector2 start = bb.first;
     Vector2 end = bb.second;
-    
-    
+
+    float area_doubled = edge_cross(v0, v1, v2); // area of the triangle multiplied by 2
+
     for (int x = start.x; x <= end.x; ++x) {
         for (int y = start.y; y <= end.y; ++y) {
-            if (is_inside_triangle(x, y, p0, p1, p2)) {
-                draw_pixel(x, y, image, color);
+            float w0, w1, w2;
+            std::tie(w0, w1, w2) = calculate_barycentric_weights(x, y, v0, v1, v2);
+
+            bool is_inside = w0 <= 0 && w1 <= 0 && w2 <= 0;
+
+            // Calculate barycentric weights
+            float alpha = w0 / area_doubled;
+            float beta = w1 / area_doubled;
+            float gamma = w2 / area_doubled;
+
+            unsigned char a = 255;
+            unsigned char r = (alpha) * c0.r + (beta) * c1.r + (gamma) * c2.r;
+            unsigned char g = (alpha) * c0.g + (beta) * c1.g + (gamma) * c2.g;
+            unsigned char b = (alpha) * c0.b + (beta) * c1.b + (gamma) * c2.b;
+ 
+            if (is_inside) {
+                draw_pixel(x, y, image, Color{r, g, b, a});
             }
         }
     }
 }
 
 namespace chapters {
+    Vector2 vertices[5] = {
+        Vector2 { 40, 40 },
+        Vector2 { 80, 40 },
+        Vector2 { 40, 80 },
+        Vector2 { 90, 90 },
+        Vector2 { 75, 20 },
+    };
+
+    Color colors[5] {
+        { 255, 0, 0 },
+        { 0, 255, 0 },
+        { 0, 0, 255 },
+        { 255, 0, 0 },
+        { 0, 255, 0 },
+    };
+
     void lines(Image &image) {
         draw_line(Vector2{10, 10}, Vector2{56, 34}, image, WHITE);
         draw_line(Vector2{20, 13}, Vector2{40, 80}, image, RED); 
@@ -148,23 +174,25 @@ namespace chapters {
     }
 
     void triangles(Image &image) {
-        Vector2 vertices[5] = {
-            Vector2 { 40, 40 },
-            Vector2 { 80, 40 },
-            Vector2 { 40, 80 },
-            Vector2 { 90, 90 },
-            Vector2 { 75, 20 },
-        };
-
         Vector2 v0 = vertices[0];
-        Vector2 v1 = vertices[1];
-        Vector2 v2 = vertices[2];
-        Vector2 v3 = vertices[3];
-        Vector2 v4 = vertices[4];
+        Color c0 = colors[0];
 
-        draw_triangle(v0, v1, v2, image, Color{255, 0, 255, 255});
-        draw_triangle(v3, v2, v1, image, Color{100, 25, 255, 255});
-        draw_triangle(v4, v1, v0, image, Color{24, 0, 255, 255});
+        Vector2 v1 = vertices[1];
+        Color c1 = colors[1];
+
+        Vector2 v2 = vertices[2];
+        Color c2 = colors[2];
+
+        Vector2 v3 = vertices[3];
+        Color c3 = colors[3];
+
+        Vector2 v4 = vertices[4];
+        Color c4 = colors[4];
+
+        // CCW vertex order
+        draw_triangle(v0, v1, v2, c0, c1, c2, image);
+        draw_triangle(v0, v4, v1, c0, c4, c1, image);
+        draw_triangle(v3, v2, v1, c3, c2, c1, image);
     }
 }
 
