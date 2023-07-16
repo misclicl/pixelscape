@@ -135,12 +135,13 @@ void draw_triangle(Vector2 &v0, Vector2 &v1, Vector2 &v2, Color &c0, Color &c1, 
  
             if (is_inside) {
                 draw_pixel(x, y, image, Color{r, g, b, a});
+                // draw_pixel(x, y, image, Color{255, 255, 255, 255});
             }
         }
     }
 }
 
-namespace chapters {
+namespace demos {
     Vector2 vertices[5] = {
         Vector2 { 40, 40 },
         Vector2 { 80, 40 },
@@ -194,28 +195,74 @@ namespace chapters {
         draw_triangle(v0, v4, v1, c0, c4, c1, image);
         draw_triangle(v3, v2, v1, c3, c2, c1, image);
     }
-}
 
-void draw_model(tinyrenderer::Model *model, Image &image) {
-    for (int i=0; i<model->nfaces(); i++) {
-        std::vector<int> face = model->face(i);
+    void draw_mesh_wireframe(tinyrenderer::Model *model, Image &image) {
+        for (int i=0; i < model->nfaces(); i++) {
+            std::vector<int> face = model->face(i);
 
-        int half_width = floor(image.width / 2);
-        int half_height = floor(image.height / 2);
+            int half_width = floor(image.width / 2);
+            int half_height = floor(image.height / 2);
 
-        for (int j=0; j<3; j++) {
-            Vector3 v0 = model->vert(face[j]);
-            Vector3 v1 = model->vert(face[(j+1)%3]);
+            for (int j=0; j<3; j++) {
+                Vector3 v0 = model->vert(face[j]);
+                Vector3 v1 = model->vert(face[(j+1)%3]);
+
+                float x0 = (v0.x + 1.) * (half_width);
+                float y0 = (v0.y + 1.) * (half_height);
+                float x1 = (v1.x + 1.) * (half_width);
+                float y1 = (v1.y + 1.) * (half_height);
+
+                draw_line(Vector2{ x0, y0 }, Vector2{ x1, y1 }, image, WHITE);
+            }
+        }
+    }
+
+    void test(tinyrenderer::Model *model, Image &image) {
+        for (int i=0; i<model->nfaces(); i++) { 
+            std::vector<int> face = model->face(i); 
+            Vector2 screen_coords[3];
+
+            int half_width = floor(image.width / 2);
+            int half_height = floor(image.height / 2);
+
+            // for (int j=0; j<3; j++) { 
+            //     // Vector3 world_coords = model->vert(face[j]); 
+            //     // float x = (world_coords.x+1.) * half_width;
+            //     // float y = (world_coords.y+1.) * half_height;
+                
+            //     screen_coords[j] = Vector2{ x, y };
+            // } 
+            Vector3 v0 = model->vert(face[0]);
+            Vector3 v1 = model->vert(face[1]);
+            Vector3 v2 = model->vert(face[2]);
 
             float x0 = (v0.x + 1.) * (half_width);
             float y0 = (v0.y + 1.) * (half_height);
             float x1 = (v1.x + 1.) * (half_width);
             float y1 = (v1.y + 1.) * (half_height);
+            float x2 = (v2.x + 1.) * (half_width);
+            float y2 = (v2.y + 1.) * (half_height);
 
-            draw_line(Vector2{ x0, y0 }, Vector2{ x1, y1 }, image, WHITE);
+            Color c0 = GREEN;
+            Color c1 = RED;
+            Color c2 = RED;
+
+            Color color = Color{
+                (unsigned char)(rand()%255),
+                (unsigned char)(rand()%255),
+                (unsigned char)(rand()%255),
+                255
+            };
+
+            Vector2 va0 = Vector2{x0, y0};
+            Vector2 va1 = Vector2{x1, y1};
+            Vector2 va2 = Vector2{x2, y2};
+
+            draw_triangle(va0, va1, va2, color, color, color, image);
         }
     }
 }
+
 
 int main(int argc, char** argv) {
     InitWindow(window_width, window_height, "tinyrenderer");
@@ -228,10 +275,11 @@ int main(int argc, char** argv) {
     while (!WindowShouldClose()) {
         fill_image(image, BLACK);
 
-        // chapters::lines(image);
-        // chapters::triangle_wireframe(image);
-        chapters::triangles(image);
-        // draw_model(model, image);
+        // demos::lines(image);
+        // demos::triangle_wireframe(image);
+        // demos::triangles(image);
+        // demos::draw_mesh_wireframe(model, image);
+        demos::test(model, image);
 
         ImageFlipVertical(&image);
         
@@ -249,6 +297,8 @@ int main(int argc, char** argv) {
 
         EndDrawing();
     }
+
+    delete model;
 
     UnloadTexture(texture);
     UnloadImage(image);
