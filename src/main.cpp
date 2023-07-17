@@ -96,9 +96,12 @@ float edge_cross(const Vector2 &a, const Vector2 &b, const Vector2 &c) {
 }
 
 std::tuple<float, float, float> calculate_barycentric_weights(int x, int y, Vector2 &v0, Vector2 &v1, Vector2 &v2) {
-    int bias0 = is_top_left(v0, v1) ? 0 : -1;
-    int bias1 = is_top_left(v1, v2) ? 0 : -1;
-    int bias2 = is_top_left(v2, v0) ? 0 : -1;
+    // int bias0 = is_top_left(v0, v1) ? 0 : -1;
+    // int bias1 = is_top_left(v1, v2) ? 0 : -1;
+    // int bias2 = is_top_left(v2, v0) ? 0 : -1;
+    int bias0 = 0;
+    int bias1 = 0;
+    int bias2 = 0;
 
     Vector2 p = {(float)x, (float)y};
 
@@ -128,14 +131,14 @@ void draw_triangle(Vector2 &v0, Vector2 &v1, Vector2 &v2, Color &c0, Color &c1, 
             float beta = w1 / area_doubled;
             float gamma = w2 / area_doubled;
 
-            unsigned char a = 255;
-            unsigned char r = (alpha) * c0.r + (beta) * c1.r + (gamma) * c2.r;
-            unsigned char g = (alpha) * c0.g + (beta) * c1.g + (gamma) * c2.g;
-            unsigned char b = (alpha) * c0.b + (beta) * c1.b + (gamma) * c2.b;
+            unsigned char r = alpha * c0.r + beta * c1.r + gamma * c2.r;
+            unsigned char g = alpha * c0.g + beta * c1.g + gamma * c2.g;
+            unsigned char b = alpha * c0.b + beta * c1.b + gamma * c2.b;
  
             if (is_inside) {
-                draw_pixel(x, y, image, Color{r, g, b, a});
+                // draw_pixel(x, y, image, c0);
                 // draw_pixel(x, y, image, Color{255, 255, 255, 255});
+                draw_pixel(x, y, image, Color{r, g, b, 255});
             }
         }
     }
@@ -217,48 +220,54 @@ namespace demos {
         }
     }
 
-    void test(tinyrenderer::Model *model, Image &image) {
+    void render_flat(tinyrenderer::Model *model, Image &image, Vector3 &light_dir) {
         for (int i=0; i<model->nfaces(); i++) { 
             std::vector<int> face = model->face(i); 
             Vector2 screen_coords[3];
+            Vector3 world_coords[3];
 
             int half_width = floor(image.width / 2);
             int half_height = floor(image.height / 2);
 
-            // for (int j=0; j<3; j++) { 
-            //     // Vector3 world_coords = model->vert(face[j]); 
-            //     // float x = (world_coords.x+1.) * half_width;
-            //     // float y = (world_coords.y+1.) * half_height;
-                
-            //     screen_coords[j] = Vector2{ x, y };
-            // } 
-            Vector3 v0 = model->vert(face[0]);
-            Vector3 v1 = model->vert(face[1]);
-            Vector3 v2 = model->vert(face[2]);
+            Vector3 world_coord_0 = model->vert(face[0]);
+            Vector3 world_coord_1 = model->vert(face[1]);
+            Vector3 world_coord_2 = model->vert(face[2]);
 
-            float x0 = (v0.x + 1.) * (half_width);
-            float y0 = (v0.y + 1.) * (half_height);
-            float x1 = (v1.x + 1.) * (half_width);
-            float y1 = (v1.y + 1.) * (half_height);
-            float x2 = (v2.x + 1.) * (half_width);
-            float y2 = (v2.y + 1.) * (half_height);
+            Vector3 n = Vector3CrossProduct(Vector3Subtract(world_coord_2, world_coord_0), Vector3Subtract(world_coord_1, world_coord_0));
+            Vector3 normalized = Vector3Normalize(n);
+            float intensity = std::min(1.f, Vector3DotProduct(normalized, light_dir));
 
-            Color c0 = GREEN;
-            Color c1 = RED;
-            Color c2 = RED;
+            float x0 = (world_coord_0.x + 1.) * (half_width);
+            float y0 = (world_coord_0.y + 1.) * (half_height);
+            float x1 = (world_coord_1.x + 1.) * (half_width);
+            float y1 = (world_coord_1.y + 1.) * (half_height);
+            float x2 = (world_coord_2.x + 1.) * (half_width);
+            float y2 = (world_coord_2.y + 1.) * (half_height);
+
+            // Color c0 = GREEN;
+            // Color c1 = RED;
+            // Color c2 = RED;
 
             Color color = Color{
-                (unsigned char)(rand()%255),
-                (unsigned char)(rand()%255),
-                (unsigned char)(rand()%255),
+                (unsigned char)(intensity * 200),
+                (unsigned char)(intensity * 200),
+                (unsigned char)(intensity * 200),
+                // (unsigned char)(intensity * (rand()%255)),
+                // (unsigned char)(intensity * (rand()%255)),
+                // (unsigned char)(intensity * (rand()%255)),
                 255
             };
 
-            Vector2 va0 = Vector2{x0, y0};
-            Vector2 va1 = Vector2{x1, y1};
-            Vector2 va2 = Vector2{x2, y2};
+            // Color color = WHITE;
 
-            draw_triangle(va0, va1, va2, color, color, color, image);
+            if (intensity>0) { 
+
+                Vector2 va0 = Vector2{x0, y0};
+                Vector2 va1 = Vector2{x1, y1};
+                Vector2 va2 = Vector2{x2, y2};
+
+                draw_triangle(va0, va1, va2, color, color, color, image);
+            }
         }
     }
 }
@@ -268,9 +277,11 @@ int main(int argc, char** argv) {
     InitWindow(window_width, window_height, "tinyrenderer");
     SetTargetFPS(60); // Set our game to run at 60 frames-per-second
 
-    Image image = GenImageColor(128, 128, BLACK);
+    int texture_size = 128;
+    Image image = GenImageColor(texture_size, texture_size, BLACK);
     Texture2D texture = LoadTextureFromImage(image);   // Convert Image to Texture2D
     tinyrenderer::Model *model = new tinyrenderer::Model("assets/african_head.obj");
+    Vector3 light_dir = {0, 0, -1};
 
     while (!WindowShouldClose()) {
         fill_image(image, BLACK);
@@ -279,7 +290,7 @@ int main(int argc, char** argv) {
         // demos::triangle_wireframe(image);
         // demos::triangles(image);
         // demos::draw_mesh_wireframe(model, image);
-        demos::test(model, image);
+        demos::render_flat(model, image, light_dir);
 
         ImageFlipVertical(&image);
         
