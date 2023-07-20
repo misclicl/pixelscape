@@ -7,9 +7,8 @@
 
 tinyrenderer::Model::Model(const char *filename) : verts_(), faces_() {
     std::ifstream in;
-    in.open(filename, std::ifstream::in);
-    if (in.fail())
-        return;
+    in.open (filename, std::ifstream::in);
+    if (in.fail()) return;
     std::string line;
     while (!in.eof()) {
         std::getline(in, line);
@@ -33,24 +32,23 @@ tinyrenderer::Model::Model(const char *filename) : verts_(), faces_() {
             faces_.push_back(f);
         }
     }
-    std::cerr << "# v# " << verts_.size() << " f# " << faces_.size() << std::endl;
 }
 
 tinyrenderer::Model::~Model() {
 }
 
-int tinyrenderer::Model::Model::nverts() {
+int tinyrenderer::Model::Model::nverts() const {
     return (int)verts_.size();
 }
 
-int tinyrenderer::Model::Model::nfaces() {
+int tinyrenderer::Model::Model::nfaces() const {
     return (int)faces_.size();
 }
 
-std::vector<int> tinyrenderer::Model::Model::face(int idx) {
+std::vector<int> tinyrenderer::Model::Model::face(int idx) const {
     return faces_[idx];
 }
 
-Vector3 tinyrenderer::Model::Model::vert(int i) {
+Vector3 tinyrenderer::Model::Model::vert(int i) const {
     return verts_[i];
 }

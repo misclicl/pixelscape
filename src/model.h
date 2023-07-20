@@ -13,10 +13,10 @@ private:
 public:
     Model(const char *filename);
     ~Model();
-    int nverts();
-    int nfaces();
-    Vector3 vert(int i);
-    std::vector<int> face(int idx);
+    int nverts() const;
+    int nfaces() const;
+    Vector3 vert(int i) const;
+    std::vector<int> face(int idx) const;
 };
 } // namespace tinyrenderer
 

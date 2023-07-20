@@ -1,8 +1,7 @@
 ## Usage
 
-To build:
-```
-# pointing cmake to build directory
+``` bash
+cmake -B build
 cmake --build build
 ```
 
