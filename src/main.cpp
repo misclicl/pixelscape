@@ -8,16 +8,23 @@
 
 const int window_width = 512;
 const int window_height = 512;
+
 const int texture_size = 128;
 
-std::pair<Vector2, Vector2> triangle_bb(const Vector3 *vertices) {
-    float x_start = std::max(0.f, std::min(vertices[0].x, std::min(vertices[1].x, vertices[2].x)));
-    float x_end = std::min(128.0f, std::max(vertices[0].x, std::max(vertices[1].x, vertices[2].x)));
+const float far_clipping_plane = -std::numeric_limits<float>::max();
+const float close_clipping_plane = 0;
 
-    float y_start = std::max(0.f, std::min(vertices[0].y, std::min(vertices[1].y, vertices[2].y)));
-    float y_end = std::min(128.f, std::max(vertices[0].y, std::max(vertices[1].y, vertices[2].y)));
+void triangle_bb(const Vector3 *vertices, int *boundaries) {
+    int x_start = floor(std::min(vertices[0].x, std::min(vertices[1].x, vertices[2].x)));
+    int x_end = ceil(std::max(vertices[0].x, std::max(vertices[1].x, vertices[2].x)));
 
-    return {Vector2{x_start, y_start}, Vector2{x_end, y_end}};
+    int y_start = floor(std::min(vertices[0].y, std::min(vertices[1].y, vertices[2].y)));
+    int y_end = ceil (std::max(vertices[0].y, std::max(vertices[1].y, vertices[2].y)));
+
+    boundaries[0] = std::max(0, x_start);
+    boundaries[1] = std::min(texture_size, x_end);
+    boundaries[2] = std::max(0, y_start);
+    boundaries[3] = std::min(texture_size, y_end);
 }
 
 void barycentric_coords(Vector3 const *vertices, Vector3 const p, float &u, float &v, float&w) {
@@ -34,41 +41,61 @@ void barycentric_coords(Vector3 const *vertices, Vector3 const p, float &u, floa
     u = 1.0f - v - w;
 }
 
-void draw_triangle(const Vector3 *vertices, const Color color) {
-    std::pair<Vector2, Vector2> bb = triangle_bb(vertices);
-    Vector2 start = bb.first;
-    Vector2 end = bb.second;
+float edgeFunction(const Vector3 &a, const Vector3 &b, const Vector3 &c) {
+    return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
+}
 
-    for (int x = start.x; x <= end.x; ++x) {
-        for (int y = start.y; y <= end.y; ++y) {
+void draw_triangle(const Vector3 *vertices, const Color color, float *zbuffer) {
+    int *boundaries = new int[4];
+    triangle_bb(vertices, boundaries);
+
+    Vector3 p;
+
+    for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
+        for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
             float u, v, w;
+            barycentric_coords(vertices, Vector3 {(float)p.x, (float)p.y, 0}, u, v, w);
 
-            barycentric_coords(vertices, Vector3 {(float)x, (float)y, 0}, u, v, w);
+            float epsilon = 0;
+            if (w >= epsilon && v >= epsilon && u >= epsilon) {
+                p.z = u * vertices[0].z + v * vertices[1].z + w * vertices[2].z;
+                int index = (int)p.x + (int)p.y * texture_size;
 
-            if (w >= 0 && v >= 0 && u >= 0) {
-                DrawPixel(x, y, color);
+                if (zbuffer[index] < p.z) {
+                    zbuffer[index] = p.z;
+                    Color color = {
+                        (unsigned char)((p.z + .5f) * 128),
+                        (unsigned char)((p.z + .5f) * 128),
+                        (unsigned char)((p.z + .5f) * 128),
+                        255,
+                    };
+
+                    DrawPixel(p.x, p.y, color);
+                }
             }
         }
     }
 }
 
-
 void render_with_shading(const tinyrenderer::Model *model, Vector3 &light_dir) {
-    for (int i = 0; i < model->nfaces(); i++) {
+    float *depth_buffer = new float[texture_size*texture_size];
+    for (uint32_t i = 0; i < texture_size * texture_size; ++i) {
+        depth_buffer[i] = far_clipping_plane;
+    }
+
+    for (uint32_t i = 0; i < model->nfaces(); ++i) {
         Vector2 screen_coords[3];
         Vector3 world_coords[3];
         Vector3 vertices[3];
 
         std::vector<int> face = model->face(i);
 
-        int half_width = floor(128 / 2);
-        int half_height = floor(128 / 2);
+        int half_width = floor(texture_size/ 2);
+        int half_height = floor(texture_size/ 2);
 
         for (int j = 0; j < 3; j++) {
             world_coords[j] = model->vert(face[j]);
-        }
 
-        for (int j = 0; j < 3; j++) {
             vertices[j].x = (world_coords[j].x + 1.) * (half_width);
             vertices[j].y = (world_coords[j].y + 1.) * (half_height);
             vertices[j].z = world_coords[j].z;
@@ -81,7 +108,7 @@ void render_with_shading(const tinyrenderer::Model *model, Vector3 &light_dir) {
             )
         );
 
-        float intensity = std::min(1.f, Vector3DotProduct(triangle_normal, light_dir));
+        float intensity = std::min(100.f, Vector3DotProduct(triangle_normal, light_dir));
 
         Color color = Color{
             (unsigned char)(intensity * (255)),
@@ -94,7 +121,7 @@ void render_with_shading(const tinyrenderer::Model *model, Vector3 &light_dir) {
         };
 
         if (intensity > 0) {
-            draw_triangle(vertices, color);
+            draw_triangle(vertices, color, depth_buffer);
         }
     }
 }
@@ -104,6 +131,7 @@ int main(int argc, char **argv) {
     SetTargetFPS(60);
 
     tinyrenderer::Model *model = new tinyrenderer::Model("assets/head.obj");
+
     Vector3 light_dir = {0, 0, -1};
 
     RenderTexture2D render_texture = LoadRenderTexture(texture_size, texture_size);
