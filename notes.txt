@@ -1,0 +1,15 @@
+I'm going to follow right-handed coordinate system here (hi OpenGL):
+
+                ^ y
+                |
+                |
+                |  / -z
+                | /
+                |/
+  -x ------------------------> x
+               /|
+              / |
+             /  |
+          z /   |
+                |
+                | -y

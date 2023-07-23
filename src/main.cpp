@@ -1,133 +1,61 @@
 #include <cstdio>
 #include <iostream>
 #include <vector>
+#include <array>
 
 #include "raylib.h"
 #include "raymath.h"
 
 #include "model.h"
+#include "display.h"
 
 const int window_width = 512;
 const int window_height = 512;
 
-const int texture_size = 128;
+const int target_render_size_x = 256;
+const int target_render_size_y = 256;
 
-Vector3 vertices[5] = {
-    Vector3 { 40, 40, 1 },
-    Vector3 { 80, 40, 1 },
-    Vector3 { 40, 80, 1 },
-    Vector3 { 90, 90, 1 },
-    Vector3 { 75, 20, 1 },
+const int unit = 100;
+
+const float cube_halfsize = .5f;
+
+const float front = -cube_halfsize;
+const float back = cube_halfsize;
+
+Vector3 vertices[8] = {
+    Vector3 { -cube_halfsize, -cube_halfsize, front },
+    Vector3 {  cube_halfsize, -cube_halfsize, front },
+    Vector3 { -cube_halfsize,  cube_halfsize, front },
+    Vector3 {  cube_halfsize,  cube_halfsize, front },
+
+    Vector3 { -cube_halfsize, -cube_halfsize, back },
+    Vector3 {  cube_halfsize, -cube_halfsize, back },
+    Vector3 { -cube_halfsize,  cube_halfsize, back },
+    Vector3 {  cube_halfsize,  cube_halfsize, back },
 };
 
-const float far_clipping_plane = -std::numeric_limits<float>::max();
-const float close_clipping_plane = 0;
+const float far_clipping_plane = 10000;
+const float near_clipping_plane = .1;
 
-inline void triangle_bb(const Vector3 *vertices, int *boundaries) {
-    int x_start = floor(std::min(vertices[0].x, std::min(vertices[1].x, vertices[2].x)));
-    int x_end = ceil(std::max(vertices[0].x, std::max(vertices[1].x, vertices[2].x)));
-
-    int y_start = floor(std::min(vertices[0].y, std::min(vertices[1].y, vertices[2].y)));
-    int y_end = ceil (std::max(vertices[0].y, std::max(vertices[1].y, vertices[2].y)));
-
-    boundaries[0] = std::max(0, x_start);
-    boundaries[1] = std::min(texture_size, x_end);
-    boundaries[2] = std::max(0, y_start);
-    boundaries[3] = std::min(texture_size, y_end);
+Vector4 Vector4Transform(const Vector4 v, const Matrix mat) {
+    Vector4 result;
+    result.x = mat.m0*v.x + mat.m4*v.y + mat.m8*v.z + mat.m12*v.w;
+    result.y = mat.m1*v.x + mat.m5*v.y + mat.m9*v.z + mat.m13*v.w;
+    result.z = mat.m2*v.x + mat.m6*v.y + mat.m10*v.z + mat.m14*v.w;
+    result.w = mat.m3*v.x + mat.m7*v.y + mat.m11*v.z + mat.m15*v.w;
+    return result;
 }
 
-void barycentric_coords(Vector3 const *vertices, Vector3 const p, float &u, float &v, float&w) {
-    // Formula: P = A + w1 * (B - A) + w2 * (C - A)
-    //          P = A + u * vAB + vAC
-    Vector3 vAB = Vector3Subtract(vertices[1], vertices[0]);
-    Vector3 vAC = Vector3Subtract(vertices[2], vertices[0]);
-    Vector3 vAP = Vector3Subtract(p, vertices[0]);
+void render_with_shading(const int &delta, const tinyrenderer::Model *model, Vector3 &light_dir, Image diffuse_texture) {
+    float *depth_buffer = new float[target_render_size_x*target_render_size_y];
 
-    float den = vAB.x * vAC.y - vAC.x * vAB.y;
-
-    v = (vAP.x * vAC.y - vAC.x * vAP.y) / den;
-    w = (vAB.x * vAP.y - vAP.x * vAB.y) / den;
-    u = 1.0f - v - w;
-}
-
-float edgeFunction(const Vector3 &a, const Vector3 &b, const Vector3 &c) {
-    return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
-}
-
-void draw_triangle(
-    const Vector3 *vertices,
-    const Vector2 (&uv_coords)[3],
-    Image &diffuse_texture,
-
-    const float intencity, 
-    float *zbuffer
-) {
-    int *boundaries = new int[4];
-    triangle_bb(vertices, boundaries);
-
-    float area = -edgeFunction(vertices[0], vertices[1], vertices[2]);
-    Vector3 p;
-
-    for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
-        for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
-            float u, v, w;
-            barycentric_coords(vertices, Vector3 {(float)p.x, (float)p.y, 0}, u, v, w);
-
-            if (w >= 0 && v >= 0 && u >= 0) {
-                printf("uvw: %f, %f, %f \n", u, v, w);
-                p.z = u * vertices[0].z + v * vertices[1].z + w * vertices[2].z;
-                int index = (int)p.x + (int)p.y * texture_size;
-
-                if (zbuffer[index] < p.z) {
-                    // ######## UV ##########
-
-                    float alpha = u;
-                    float beta = v;
-                    float gamma = w;
-
-                    float u = alpha * uv_coords[0].x + beta * uv_coords[1].x + gamma * uv_coords[2].x;
-                    float v = alpha * uv_coords[0].y + beta * uv_coords[1].y + gamma * uv_coords[2].y;
-
-                    u = floor(u * diffuse_texture.width);
-                    v = diffuse_texture.height - floor(v * diffuse_texture.height);
-
-                    int index_uv = (v * diffuse_texture.height) + u;
-
-                    Color* data = (Color*)diffuse_texture.data;
-                    Color color = GetPixelColor(data + index_uv, diffuse_texture.format);
-                    color = {
-                        (unsigned char)(color.r * intencity),
-                        (unsigned char)(color.g * intencity),
-                        (unsigned char)(color.b * intencity),
-                        color.a
-                    };
-
-                    // ######## UV ENDS ##########
-
-                    zbuffer[index] = p.z;
-
-                    // Color color = {
-                    //     (unsigned char)((p.z + .5f) * 128),
-                    //     (unsigned char)((p.z + .5f) * 128),
-                    //     (unsigned char)((p.z + .5f) * 128),
-                    //     255,
-                    // };
-
-                    DrawPixel(p.x, p.y, color);
-                }
-            }
-        }
+    for (uint32_t i = 0; i < target_render_size_x * target_render_size_y; ++i) {
+        depth_buffer[i] = -far_clipping_plane;
     }
 
-    delete[] boundaries;
-}
-
-void render_with_shading(const tinyrenderer::Model *model, Vector3 &light_dir, Image diffuse_texture) {
-    float *depth_buffer = new float[texture_size*texture_size];
-
-    for (uint32_t i = 0; i < texture_size * texture_size; ++i) {
-        depth_buffer[i] = far_clipping_plane;
-    }
+    Matrix rotation = MatrixRotateY((float)delta / 5 * DEG2RAD);
+    Matrix scale = MatrixScale(1.f, 1.f, 1.f);
+    Matrix model_to_world = MatrixMultiply(scale, rotation);
 
     for (uint32_t i = 0; i < model->n_faces(); ++i) {
         Vector3 world_coords[3];
@@ -137,11 +65,17 @@ void render_with_shading(const tinyrenderer::Model *model, Vector3 &light_dir, I
         std::vector<int> face_vertex_indices = model->face_vertices(i);
         std::vector<int> uvs = model->face_uvs(i);
 
-        int half_width = floor(texture_size/ 2);
-        int half_height = floor(texture_size/ 2);
+        int half_width = floor(target_render_size_x / 2);
+        int half_height = floor(target_render_size_y / 2);
 
         for (int j = 0; j < 3; j++) {
-            world_coords[j] = model->vert(face_vertex_indices[j]);
+            world_coords[j] = Vector3Transform(
+                model->vert(face_vertex_indices[j]),
+                model_to_world
+            );
+        }
+
+        for (int j = 0; j < 3; j++) {
             uv_coords[j] = model->uv_coords(uvs[j]);
 
             vertices[j].x = (world_coords[j].x + 1.) * (half_width);
@@ -159,18 +93,36 @@ void render_with_shading(const tinyrenderer::Model *model, Vector3 &light_dir, I
         float intensity = std::min(100.f, Vector3DotProduct(triangle_normal, light_dir));
 
         if (intensity > 0) {
-            draw_triangle(vertices, uv_coords, diffuse_texture, intensity, depth_buffer);
+            tinyrenderer::draw_triangle(
+                vertices,
+                uv_coords,
+                diffuse_texture, 
+                intensity,
+                depth_buffer,
+                target_render_size_x,
+                target_render_size_y
+            );
         }
     }
 
     delete[] depth_buffer;
 }
 
-void render_vertices(Vector3 *vertices, Image &diffuse_texture) {
-    float *depth_buffer = new float[texture_size*texture_size];
+void draw_axis() {
+    float half_height = (float)target_render_size_x / 2;
+    float half_width = (float)target_render_size_y / 2;
+    float axis_length = unit;
+    Vector3 origin = {half_width, half_height, 1};
+    tinyrenderer::draw_line(origin, {half_width, half_height + axis_length, 1}, GREEN);
+    tinyrenderer::draw_line(origin, {half_width + axis_length, half_height, 1}, RED);
+}
 
-    for (uint32_t i = 0; i < texture_size * texture_size; ++i) {
-        depth_buffer[i] = far_clipping_plane;
+namespace examples {
+void render_vertices(Image &diffuse_texture) {
+    float *depth_buffer = new float[target_render_size_x*target_render_size_y];
+
+    for (uint32_t i = 0; i < target_render_size_x * target_render_size_y; ++i) {
+        depth_buffer[i] = -far_clipping_plane;
     }
 
     Vector3 v0 = vertices[0];
@@ -181,34 +133,211 @@ void render_vertices(Vector3 *vertices, Image &diffuse_texture) {
 
     Vector3 t0[3] = {v0, v1, v2};
     Vector2 uv[3] = { {0, 0}, {0, 1}, {1, 1} };
-    draw_triangle(t0, uv, diffuse_texture, 1, depth_buffer);
+    tinyrenderer::draw_triangle(t0, uv, diffuse_texture, 1, depth_buffer, target_render_size_x, target_render_size_y);
 
     delete[] depth_buffer;
+}
+
+void linear_transofrmations_example() {
+    std::vector<std::array<int, 3>> indices;
+    std::vector<Vector3> vrtxs;
+
+    indices.push_back({0, 1, 2});
+    indices.push_back({1, 2, 3});
+
+    for (const Vector3 &vertex : vertices) {
+        vrtxs.push_back(vertex);
+    }
+    tinyrenderer::draw_triangles(
+        vrtxs, 
+        indices,
+        target_render_size_x,
+        target_render_size_y,
+        RAYWHITE
+    );
+
+
+    // .707 = cos(45deg) = sin(45deg)
+    Matrix m = {
+        1, -.707, 0,
+        0,     1, 0,
+        0,     0, 0,
+    };
+
+    vrtxs.clear();
+    for (const Vector3 &vertex : vertices) {
+        vrtxs.push_back(Vector3Transform(vertex, m));
+    }
+
+    tinyrenderer::draw_triangles(
+        vrtxs, 
+        indices,
+        target_render_size_x,
+        target_render_size_y,
+        RED
+    );
+
+
+    m.m1 = .707;
+    vrtxs.clear();
+    for (const Vector3 &vertex : vertices) {
+        vrtxs.push_back(Vector3Transform(vertex, m));
+    }
+    tinyrenderer::draw_triangles(
+        vrtxs, 
+        indices,
+        target_render_size_x,
+        target_render_size_y,
+        GREEN
+    );
+
+    m.m0 = .707;
+    m.m5 = .707;
+
+    vrtxs.clear();
+    for (const Vector3 &vertex : vertices) {
+        vrtxs.push_back(Vector3Transform(vertex, m));
+    }
+    tinyrenderer::draw_triangles(
+        vrtxs, 
+        indices,
+        target_render_size_x,
+        target_render_size_y,
+        BLUE
+    );
+}
+
+/*
+    element indices:
+
+    0  4  8   12
+    1  5  9   13
+    2  6  10  14
+    3  7  11  15
+*/    
+Matrix create_viewport_matrix(int y, int x, int width, int height) {
+    Matrix m = {0};
+    int depth = 1000;
+
+    m.m12 = x + width/2.f;
+    m.m9 = y + height/2.f;
+    m.m14 = depth/2.f;
+
+    m.m0 = width/2.f;
+    m.m5 = height/2.f;
+    m.m10 = depth/2.f;
+
+    return m;
+}
+
+Matrix create_perspective(float fov, float a, float znear, float zfar) {
+    Matrix m = Matrix();
+
+    m.m0 = a * (1 / tan(fov/2));
+    m.m5 = 1 / tan(fov/2);
+    m.m10 = zfar / (zfar - znear);
+    m.m14 = (-zfar * znear)/ (zfar - znear);
+    m.m11 = 1.0;
+
+    return m;
+}
+
+Vector3 NDC_to_screen(Vector3 v) {
+    return (Vector3){
+        (v.x + 1.0f) * 0.5f * target_render_size_x,
+        (1.0f - v.y) * 0.5f * target_render_size_y,
+        v.z
+    };
+}
+
+void shape_perspective() { 
+    std::vector<std::array<int, 3>> indices;
+    std::vector<Vector3> vrtxs;
+
+    indices.push_back({0, 1, 2});
+    indices.push_back({1, 2, 3});
+
+    for (const Vector3 &vertex : vertices) {
+        vrtxs.push_back(vertex);
+    }
+    tinyrenderer::draw_triangles(
+        vrtxs, 
+        indices,
+        target_render_size_x,
+        target_render_size_y,
+        RAYWHITE
+    );
+
+    indices.push_back({4, 5, 6});
+    indices.push_back({5, 6, 7});
+    vrtxs.clear();
+
+    Matrix world = MatrixTranslate(0, 0, 2);
+    Matrix view = MatrixLookAt({0, 0, 0}, {0, 0, 1}, {0, 1, 0});
+    Matrix projection = MatrixPerspective(45*DEG2RAD, 1.f, near_clipping_plane, far_clipping_plane);
+    // Matrix view_projection = MatrixMultiply(MatrixMultiply(view, world), projection);
+    Matrix view_projection = MatrixMultiply(projection, MatrixMultiply(view, world));
+
+    for (const Vector3 &v_local: vertices) {
+        // Vector3 point = Vector3Transform(vertex, MatrixMultiply(transform, projection));
+        // Vector3 point = vertex;
+        Vector4 point = Vector4Transform({
+            v_local.x,
+            v_local.y,
+            v_local.z,
+            1.0f
+        }, view_projection);
+
+        if (point.w != 0) {
+            point.x /= point.w;
+            point.y /= point.w;
+            point.z /= point.w;
+        }
+
+        vrtxs.push_back({
+            point.x,
+            point.y,
+            point.z,
+        });
+    }
+
+    tinyrenderer::draw_triangles(
+        vrtxs, 
+        indices,
+        target_render_size_x,
+        target_render_size_y,
+        YELLOW
+    );
+    draw_axis();
+}
+
 }
 
 int main(int argc, char **argv) {
     InitWindow(window_width, window_height, "tinyrenderer");
     SetTargetFPS(60);
+    int frame_counter = 0;
 
     tinyrenderer::Model *model = new tinyrenderer::Model("assets/head.obj");
-    // tinyrenderer::Model *model = new tinyrenderer::Model("assets/corner.obj");
-    // tinyrenderer::Model *model = new tinyrenderer::Model("assets/teapot.obj");
-    Image diffuse_img = LoadImage("assets/diffuse.png");
-    // Image diffuse_img = LoadImage("assets/grid.png");
+    // tinyrenderer::Model *model = new tinyrenderer::Model("assets/cube.obj");
+
+    // Image diffuse_img = LoadImage("assets/diffuse.png");
+    Image diffuse_img = LoadImage("assets/grid.png");
 
     Vector3 light_dir = {0, 0, -1};
 
-    RenderTexture2D render_texture = LoadRenderTexture(texture_size, texture_size);
+    RenderTexture2D render_texture = LoadRenderTexture(target_render_size_x, target_render_size_y);
 
-    BeginTextureMode(render_texture);
-    ClearBackground(BLACK);
-    EndTextureMode();
 
     while (!WindowShouldClose()) {
         BeginTextureMode(render_texture);
+        ClearBackground(BLACK);
 
-        render_with_shading(model, light_dir, diffuse_img);
-        // render_vertices(vertices, diffuse_img);
+        // render_vertices(diffuse_img);
+        // render_texture
+        render_with_shading(frame_counter, model, light_dir, diffuse_img);
+        // examples::linear_transofrmations_example();
+        examples::shape_perspective();
 
         EndTextureMode();
 
@@ -224,6 +353,7 @@ int main(int argc, char **argv) {
             WHITE
         );
 
+        frame_counter++;
         EndDrawing();
     }
 
