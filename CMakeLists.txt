@@ -8,7 +8,10 @@ set(CMAKE_BUILD_TYPE Debug)
 project(tiny-renderer VERSION 0.0.1)
 
 # Define MY_SOURCES to be a list of all the source files for my game 
-file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/examples/*.cpp"
+)
 
 set(BUILD_STATIC_LIBS ON  CACHE INTERNAL "" FORCE)
 

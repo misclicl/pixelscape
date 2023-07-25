@@ -3,14 +3,15 @@
 #include <vector>
 #include <array>
 
-#include "background_grid.h"
-#include "perspective_projection.h"
 #include "raylib.h"
 #include "raymath.h"
 
 #include "model.h"
 #include "display.h"
-#include "software_renderer.h"
+#include "examples/background_grid.h"
+#include "examples/draw_rectangles.h"
+#include "perspective_projection.h"
+#include "color_buffer.h"
 
 const int window_width = 512;
 const int window_height = 512;
@@ -296,13 +297,12 @@ void shape_perspective() {
         YELLOW
     );
 
-    tinyrenderer::draw_axis(target_render_size_x, target_render_size_y);
+    // tinyrenderer::draw_axis(target_render_size_x, target_render_size_y);
 }
 
 }
 
 int main(int argc, char **argv) {
-    using tinyrenderer::RendererS;
     InitWindow(window_width, window_height, "tinyrenderer");
     SetTargetFPS(60);
     int frame_counter = 0;
@@ -319,12 +319,20 @@ int main(int argc, char **argv) {
 
     tinyrenderer::program::PerspectiveProjection example_a;
     tinyrenderer::program::BackgroundGrid bg_grid;
-    uint32_t *color_buffer = 
+    tinyrenderer::program::DrawRectangles draw_rectangles;
+
+    tinyrenderer::ColorBuffer color_buffer;
+    color_buffer.width = target_render_size_x;
+    color_buffer.height = target_render_size_y;
+    color_buffer.pixels = 
         (uint32_t *)malloc(target_render_size_x * target_render_size_y * sizeof(unsigned int));
+    
 
     while (!WindowShouldClose()) {
         BeginTextureMode(render_texture);
         ClearBackground(BLACK);
+
+        color_buffer.clear(0x000000FF);
 
         // render_vertices(diffuse_img);
         // render_texture
@@ -333,7 +341,12 @@ int main(int argc, char **argv) {
         // examples::shape_perspective();
         // example_a.run(near_clipping_plane, target_render_size_x, target_render_size_y);
         // tinyrenderer::program::BackgroundGrid
-        bg_grid.run(color_buffer, target_render_size_x, target_render_size_y);
+        bg_grid.run(&color_buffer);
+        draw_rectangles.run(&color_buffer);
+        tinyrenderer::draw_axis(&color_buffer);
+        example_a.run(&color_buffer, near_clipping_plane);
+
+        color_buffer.draw_to_texture();
 
         EndTextureMode();
 
@@ -359,7 +372,7 @@ int main(int argc, char **argv) {
     CloseWindow();
 
     delete model;
-    free(color_buffer);
+    free(color_buffer.pixels);
 
     return 0;
 }

@@ -7,20 +7,17 @@
 #include "display.h"
 #include "tiny_math.h"
 
+namespace tinyrenderer {
 // Reference:
 // https://www.scratchapixel.com/lessons/3d-basic-rendering/rasterization-practical-implementation/projection-stage.html
 // if link's broken, there's a local copy
-
 Vector3 to_screen_space(Vector3 &v, float near, float fov, float aspect) {
     Vector3 out;
 
-    // float tanHalfFov = tan(fov / 2.0f);
-    
-    // out.x = v.x / (-v.z * tanHalfFov * aspect);
-    // out.y = v.y / (-v.z * tanHalfFov);
     out.x = near * v.x / -v.z;
     out.y = near * v.y / -v.z;
     out.z = -v.z;
+
     return out;
 }
 
@@ -50,14 +47,13 @@ Vector3 to_raster(Vector3 &v, int width, int height) {
 }
 
 void view_2_raster(Vector3 &v, float near, int width, int height) {
-    // Vector3 v_screen = to_screen_space(v, near);
     Vector3 v_screen = to_screen_space(v, near, 30.f, 1.f);
     Vector3 v_ndc = to_ndc_space(v_screen);
     Vector3 v_raster = to_raster(v_ndc, width, height);
     v = v_raster;
 }
 
-void tinyrenderer::program::PerspectiveProjection::run(float near, int width, int height) {
+void program::PerspectiveProjection::run(ColorBuffer *color_buffer, float near) {
     float half_size = 10.f;
     float front = -15.f;
     float far = front - half_size * 2;
@@ -78,24 +74,24 @@ void tinyrenderer::program::PerspectiveProjection::run(float near, int width, in
     };
 
     for (auto &v: vs) {
-        view_2_raster(v, near, width, height);
+        view_2_raster(v, near, color_buffer->width, color_buffer->height);
     }
 
+    uint32_t color_pink = 0xED00FFFF;
+
     // near left
-    tinyrenderer::draw_line(vs[0], vs[1], PINK);
+    draw_line(color_buffer, vs[0], vs[1], color_pink);
     // near top
-    tinyrenderer::draw_line(vs[1], vs[3], PINK);
+    draw_line(color_buffer, vs[1], vs[3], color_pink);
     // near right
-    tinyrenderer::draw_line(vs[2], vs[3], PINK);
+    draw_line(color_buffer, vs[2], vs[3], color_pink);
     // near bottom
-    tinyrenderer::draw_line(vs[0], vs[2], PINK);
+    draw_line(color_buffer, vs[0], vs[2], color_pink);
 
-
-    
-    tinyrenderer::draw_line(vs[4], vs[5], PINK);
-    tinyrenderer::draw_line(vs[5], vs[7], PINK);
-    tinyrenderer::draw_line(vs[6], vs[7], PINK);
-    tinyrenderer::draw_line(vs[4], vs[6], PINK);
-
-    tinyrenderer::draw_axis(width, height);
+    draw_line(color_buffer, vs[4], vs[5], color_pink);
+    draw_line(color_buffer, vs[5], vs[7], color_pink);
+    draw_line(color_buffer, vs[6], vs[7], color_pink);
+    draw_line(color_buffer, vs[4], vs[6], color_pink);
 }
+}
+

@@ -5,65 +5,18 @@
 #include "raylib.h"
 #include "display.h"
 #include "raymath.h"
+#include "color_buffer.h"
 
-uint32_t *tinyrenderer::get_buffer_pixel(uint32_t *color_buffer, int x, int y, int width, int height) {
-    return &color_buffer[x + width * y];
-};
+namespace tinyrenderer {
 
-uint32_t *tinyrenderer::get_buffer_pixel(uint32_t *color_buffer, int idx) {
-    return &color_buffer[idx];
+void draw_line(Vector3 p0, Vector3 p1, Color color) {
 }
 
-void tinyrenderer::draw_line(Vector3 p0, Vector3 p1, Color color) {
-    int x0 = p0.x;
-    int y0 = p0.y;
-    int x1 = p1.x;
-    int y1 = p1.y;
-    
-    bool isSteep = false;
-
-    if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
-        isSteep = true;
-        std::swap(x0, y0);
-        std::swap(x1, y1);
-    }
-
-    if (x0 > x1) {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
-
-    int dx = x1 - x0;
-    int dy = y1 - y0;
-
-    float y_step = std::abs(dy/float(dx));
-    float y_overflow = 0; 
-    int y = y0; 
-
-    for (int x = x0; x <= x1; x++) {
-        if (isSteep) {
-            DrawPixel(y, x, color);
-        } else {
-            DrawPixel(x, y, color);
-        }
-
-        y_overflow += y_step;
-
-        // When yOverflow exceeds 0.5, we've accumulated enough
-        // fractional yStep to adjust the y coordinate.
-        if (y_overflow > .5) {
-            y += (y1 > y0 ? 1 : -1);
-            y_overflow -= 1.;
-        }
-    }
-}
-
-void tinyrenderer::draw_line(
-    uint32_t *color_buffer,
-    Vector3 p0, Vector3 p1,
-    uint32_t color,
-    int width,
-    int height
+void draw_line(
+    ColorBuffer *color_buffer,
+    Vector3 p0,
+    Vector3 p1,
+    uint32_t color
 ) {
     int x0 = p0.x;
     int y0 = p0.y;
@@ -91,13 +44,14 @@ void tinyrenderer::draw_line(
     int y = y0; 
 
     for (int x = x0; x <= x1; x++) {
+        if (y >= color_buffer->height || x >= color_buffer->width) {
+            continue;
+        }
+
         if (isSteep) {
-            // DrawPixel(y, x, color);
-            uint32_t *pixel = get_buffer_pixel(color_buffer, y, x, width, height);
-            *pixel = color;
+            color_buffer->set_pixel(y, x, color);
         } else {
-            uint32_t *pixel = get_buffer_pixel(color_buffer, x, y, width, height);
-            *pixel = color;
+            color_buffer->set_pixel(x, y, color);
         }
 
         y_overflow += y_step;
@@ -111,7 +65,7 @@ void tinyrenderer::draw_line(
     }
 }
 
-void tinyrenderer::draw_triangle_wireframe(Vector3 p0, Vector3 p1, Vector3 p2, Color color) {
+void draw_triangle_wireframe(Vector3 p0, Vector3 p1, Vector3 p2, Color color) {
     draw_line(p0, p1, color);
     draw_line(p1, p2, color);
     draw_line(p2, p0, color);
@@ -125,7 +79,7 @@ Vector3 to_screen_coord(Vector3 &v, int screen_width, int screen_height) {
     };
 }
 
-void tinyrenderer::draw_triangles(
+void draw_triangles(
     std::vector<Vector3> &vertices, 
     std::vector<std::array<int, 3>> &t_indices, 
     int screen_width,
@@ -178,7 +132,7 @@ float edgeFunction(const Vector3 &a, const Vector3 &b, const Vector3 &c) {
     return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 }
 
-void tinyrenderer::draw_triangle(
+void draw_triangle(
     const Vector3 *vertices,
     const Vector2 (&uv_coords)[3],
     Image &diffuse_texture,
@@ -247,43 +201,35 @@ void tinyrenderer::draw_triangle(
     delete[] boundaries;
 }
 
-void tinyrenderer::draw_axis(int width, int height) {
-    const int unit = 100;
-    float half_height = (float)width / 2;
-    float half_width = (float)height / 2;
-    float axis_length = unit;
-    Vector3 origin = {half_width, half_height, 1};
-    tinyrenderer::draw_line(origin, {half_width, half_height + axis_length, 1}, GREEN);
-    tinyrenderer::draw_line(origin, {half_width + axis_length, half_height, 1}, RED);
+void draw_rectangle(
+    ColorBuffer *color_buffer,
+    Vector2 position,
+    int size_x,
+    int size_y,
+    uint32_t color
+) {
+    int x_start = std::max(0, (int)position.x);
+    int x_end = std::min(color_buffer->height, (int)position.x + size_x);
+
+    int y_start = std::max(0, (int)position.y);
+    int y_end = std::min(color_buffer->height, (int)position.y + size_y);
+
+    for (int x = x_start; x < x_end; x++) {
+        for (int y = y_start; y < y_end; y++) {
+            color_buffer->set_pixel(x, y, color);
+        }
+    }
+
 }
 
+void draw_axis(ColorBuffer *color_buffer) {
+    const int unit = 100;
+    float half_height = (float)color_buffer->width / 2;
+    float half_width = (float)color_buffer->height / 2;
+    float axis_length = unit;
+    Vector3 origin = {half_width, half_height, 1};
 
-
-void tinyrenderer::clear_color_buffer(uint32_t *color_buffer, int width, int height, uint32_t color) {
-    for (size_t i = 0; i < width * height; ++i) {
-        uint32_t *pixel = tinyrenderer::get_buffer_pixel(color_buffer, i);
-
-        *pixel = color;
-    }
-};
-
-void tinyrenderer::draw_color_buffer(uint32_t *color_buffer, int width, int height) {
-    for (size_t i = 0; i < width * height; ++i) {
-        // Retrieve buffer color
-        uint32_t *pixel = tinyrenderer::get_buffer_pixel(color_buffer, i);
-
-        // Transform color
-        Color color;
-        color.r = (*pixel >> 24) & 0xFF; // Red channel
-        color.g = (*pixel >> 16) & 0xFF; // Green channel
-        color.b = (*pixel >> 8) & 0xFF;  // Blue channel
-        color.a = *pixel & 0xFF;         // Alpha channel
-
-        // Draw pixel
-        int x = i % width;
-        int y = i / width;
-
-        DrawPixel(x, y, color);
-    }
-};
-
+    draw_line(color_buffer, origin, {half_width, half_height + axis_length, 1}, 0x00FF00FF);
+    draw_line(color_buffer, origin, {half_width + axis_length, half_height, 1}, 0xFF0000FF);
+}
+}

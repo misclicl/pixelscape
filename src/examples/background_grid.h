@@ -2,10 +2,11 @@
 #define __BACKGROUND_GRID__
 
 #include <stdint.h>
+#include "../color_buffer.h"
 
 namespace tinyrenderer::program {
 struct BackgroundGrid{
-    void run(uint32_t *colorBuffer, int width, int height);
+    void run(ColorBuffer *color_buffer);
 };
 }
 #endif
