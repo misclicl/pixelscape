@@ -21,8 +21,6 @@
             "type": "lldb",
             "request": "launch",
             "program": "${workspaceFolder}/build/tiny-renderer",
-            // "args": ["-arg1", "-arg2"],
-            // "stopOnEntry": true
         }
     ]
 }

@@ -3,11 +3,14 @@
 #include <vector>
 #include <array>
 
+#include "background_grid.h"
+#include "perspective_projection.h"
 #include "raylib.h"
 #include "raymath.h"
 
 #include "model.h"
 #include "display.h"
+#include "software_renderer.h"
 
 const int window_width = 512;
 const int window_height = 512;
@@ -108,14 +111,6 @@ void render_with_shading(const int &delta, const tinyrenderer::Model *model, Vec
     delete[] depth_buffer;
 }
 
-void draw_axis() {
-    float half_height = (float)target_render_size_x / 2;
-    float half_width = (float)target_render_size_y / 2;
-    float axis_length = unit;
-    Vector3 origin = {half_width, half_height, 1};
-    tinyrenderer::draw_line(origin, {half_width, half_height + axis_length, 1}, GREEN);
-    tinyrenderer::draw_line(origin, {half_width + axis_length, half_height, 1}, RED);
-}
 
 namespace examples {
 void render_vertices(Image &diffuse_texture) {
@@ -242,14 +237,6 @@ Matrix create_perspective(float fov, float a, float znear, float zfar) {
     return m;
 }
 
-Vector3 NDC_to_screen(Vector3 v) {
-    return (Vector3){
-        (v.x + 1.0f) * 0.5f * target_render_size_x,
-        (1.0f - v.y) * 0.5f * target_render_size_y,
-        v.z
-    };
-}
-
 void shape_perspective() { 
     std::vector<std::array<int, 3>> indices;
     std::vector<Vector3> vrtxs;
@@ -308,12 +295,14 @@ void shape_perspective() {
         target_render_size_y,
         YELLOW
     );
-    draw_axis();
+
+    tinyrenderer::draw_axis(target_render_size_x, target_render_size_y);
 }
 
 }
 
 int main(int argc, char **argv) {
+    using tinyrenderer::RendererS;
     InitWindow(window_width, window_height, "tinyrenderer");
     SetTargetFPS(60);
     int frame_counter = 0;
@@ -328,6 +317,10 @@ int main(int argc, char **argv) {
 
     RenderTexture2D render_texture = LoadRenderTexture(target_render_size_x, target_render_size_y);
 
+    tinyrenderer::program::PerspectiveProjection example_a;
+    tinyrenderer::program::BackgroundGrid bg_grid;
+    uint32_t *color_buffer = 
+        (uint32_t *)malloc(target_render_size_x * target_render_size_y * sizeof(unsigned int));
 
     while (!WindowShouldClose()) {
         BeginTextureMode(render_texture);
@@ -335,9 +328,12 @@ int main(int argc, char **argv) {
 
         // render_vertices(diffuse_img);
         // render_texture
-        render_with_shading(frame_counter, model, light_dir, diffuse_img);
+        // render_with_shading(frame_counter, model, light_dir, diffuse_img);
         // examples::linear_transofrmations_example();
-        examples::shape_perspective();
+        // examples::shape_perspective();
+        // example_a.run(near_clipping_plane, target_render_size_x, target_render_size_y);
+        // tinyrenderer::program::BackgroundGrid
+        bg_grid.run(color_buffer, target_render_size_x, target_render_size_y);
 
         EndTextureMode();
 
@@ -357,11 +353,13 @@ int main(int argc, char **argv) {
         EndDrawing();
     }
 
+
     UnloadRenderTexture(render_texture);
     UnloadImage(diffuse_img);
     CloseWindow();
 
     delete model;
+    free(color_buffer);
 
     return 0;
 }

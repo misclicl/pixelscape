@@ -6,6 +6,14 @@
 #include "display.h"
 #include "raymath.h"
 
+uint32_t *tinyrenderer::get_buffer_pixel(uint32_t *color_buffer, int x, int y, int width, int height) {
+    return &color_buffer[x + width * y];
+};
+
+uint32_t *tinyrenderer::get_buffer_pixel(uint32_t *color_buffer, int idx) {
+    return &color_buffer[idx];
+}
+
 void tinyrenderer::draw_line(Vector3 p0, Vector3 p1, Color color) {
     int x0 = p0.x;
     int y0 = p0.y;
@@ -37,6 +45,59 @@ void tinyrenderer::draw_line(Vector3 p0, Vector3 p1, Color color) {
             DrawPixel(y, x, color);
         } else {
             DrawPixel(x, y, color);
+        }
+
+        y_overflow += y_step;
+
+        // When yOverflow exceeds 0.5, we've accumulated enough
+        // fractional yStep to adjust the y coordinate.
+        if (y_overflow > .5) {
+            y += (y1 > y0 ? 1 : -1);
+            y_overflow -= 1.;
+        }
+    }
+}
+
+void tinyrenderer::draw_line(
+    uint32_t *color_buffer,
+    Vector3 p0, Vector3 p1,
+    uint32_t color,
+    int width,
+    int height
+) {
+    int x0 = p0.x;
+    int y0 = p0.y;
+    int x1 = p1.x;
+    int y1 = p1.y;
+    
+    bool isSteep = false;
+
+    if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
+        isSteep = true;
+        std::swap(x0, y0);
+        std::swap(x1, y1);
+    }
+
+    if (x0 > x1) {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+
+    int dx = x1 - x0;
+    int dy = y1 - y0;
+
+    float y_step = std::abs(dy/float(dx));
+    float y_overflow = 0; 
+    int y = y0; 
+
+    for (int x = x0; x <= x1; x++) {
+        if (isSteep) {
+            // DrawPixel(y, x, color);
+            uint32_t *pixel = get_buffer_pixel(color_buffer, y, x, width, height);
+            *pixel = color;
+        } else {
+            uint32_t *pixel = get_buffer_pixel(color_buffer, x, y, width, height);
+            *pixel = color;
         }
 
         y_overflow += y_step;
@@ -170,12 +231,12 @@ void tinyrenderer::draw_triangle(
 
                     zbuffer[index] = p.z;
 
-                    color = {
-                        (unsigned char)((p.z + .5f) * 128),
-                        (unsigned char)((p.z + .5f) * 128),
-                        (unsigned char)((p.z + .5f) * 128),
-                        255,
-                    };
+                    // color = {
+                    //     (unsigned char)((p.z + .5f) * 128),
+                    //     (unsigned char)((p.z + .5f) * 128),
+                    //     (unsigned char)((p.z + .5f) * 128),
+                    //     255,
+                    // };
 
                     DrawPixel(p.x, p.y, color);
                 }
@@ -185,4 +246,44 @@ void tinyrenderer::draw_triangle(
 
     delete[] boundaries;
 }
+
+void tinyrenderer::draw_axis(int width, int height) {
+    const int unit = 100;
+    float half_height = (float)width / 2;
+    float half_width = (float)height / 2;
+    float axis_length = unit;
+    Vector3 origin = {half_width, half_height, 1};
+    tinyrenderer::draw_line(origin, {half_width, half_height + axis_length, 1}, GREEN);
+    tinyrenderer::draw_line(origin, {half_width + axis_length, half_height, 1}, RED);
+}
+
+
+
+void tinyrenderer::clear_color_buffer(uint32_t *color_buffer, int width, int height, uint32_t color) {
+    for (size_t i = 0; i < width * height; ++i) {
+        uint32_t *pixel = tinyrenderer::get_buffer_pixel(color_buffer, i);
+
+        *pixel = color;
+    }
+};
+
+void tinyrenderer::draw_color_buffer(uint32_t *color_buffer, int width, int height) {
+    for (size_t i = 0; i < width * height; ++i) {
+        // Retrieve buffer color
+        uint32_t *pixel = tinyrenderer::get_buffer_pixel(color_buffer, i);
+
+        // Transform color
+        Color color;
+        color.r = (*pixel >> 24) & 0xFF; // Red channel
+        color.g = (*pixel >> 16) & 0xFF; // Green channel
+        color.b = (*pixel >> 8) & 0xFF;  // Blue channel
+        color.a = *pixel & 0xFF;         // Alpha channel
+
+        // Draw pixel
+        int x = i % width;
+        int y = i / width;
+
+        DrawPixel(x, y, color);
+    }
+};
 
