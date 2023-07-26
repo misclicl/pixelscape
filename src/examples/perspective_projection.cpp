@@ -1,11 +1,11 @@
 #include <array>
 #include <cmath>
 
-#include "perspective_projection.h"
-
 #include "raylib.h"
-#include "display.h"
-#include "tiny_math.h"
+
+#include "../display.h"
+#include "../tiny_math.h"
+#include "perspective_projection.h"
 
 namespace tinyrenderer {
 // Reference:

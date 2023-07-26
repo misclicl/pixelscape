@@ -3,14 +3,17 @@
 #include <vector>
 #include <array>
 
+#include "examples/background_grid.h"
+#include "examples/draw_rectangles.h"
+#include "examples/perspective_projection.h"
+
+#include "examples/linear_transformations.h"
+
 #include "raylib.h"
 #include "raymath.h"
 
 #include "model.h"
 #include "display.h"
-#include "examples/background_grid.h"
-#include "examples/draw_rectangles.h"
-#include "perspective_projection.h"
 #include "color_buffer.h"
 
 const int window_width = 512;
@@ -26,7 +29,7 @@ const float cube_halfsize = .5f;
 const float front = -cube_halfsize;
 const float back = cube_halfsize;
 
-Vector3 vertices[8] = {
+Vector3 jfdkalfjsdl[8] = {
     Vector3 { -cube_halfsize, -cube_halfsize, front },
     Vector3 {  cube_halfsize, -cube_halfsize, front },
     Vector3 { -cube_halfsize,  cube_halfsize, front },
@@ -50,7 +53,13 @@ Vector4 Vector4Transform(const Vector4 v, const Matrix mat) {
     return result;
 }
 
-void render_with_shading(const int &delta, const tinyrenderer::Model *model, Vector3 &light_dir, Image diffuse_texture) {
+void render_with_shading(
+    tinyrenderer::ColorBuffer *color_buffer,
+    const int &delta, 
+    const tinyrenderer::Model *model, 
+    Vector3 &light_dir, 
+    Image diffuse_texture
+) {
     float *depth_buffer = new float[target_render_size_x*target_render_size_y];
 
     for (uint32_t i = 0; i < target_render_size_x * target_render_size_y; ++i) {
@@ -98,13 +107,12 @@ void render_with_shading(const int &delta, const tinyrenderer::Model *model, Vec
 
         if (intensity > 0) {
             tinyrenderer::draw_triangle(
+                color_buffer,
                 vertices,
                 uv_coords,
                 diffuse_texture, 
                 intensity,
-                depth_buffer,
-                target_render_size_x,
-                target_render_size_y
+                depth_buffer
             );
         }
     }
@@ -121,87 +129,19 @@ void render_vertices(Image &diffuse_texture) {
         depth_buffer[i] = -far_clipping_plane;
     }
 
-    Vector3 v0 = vertices[0];
-    Vector3 v1 = vertices[1];
-    Vector3 v2 = vertices[2];
-    Vector3 v3 = vertices[3];
-    Vector3 v4 = vertices[4];
+    Vector3 v0 = jfdkalfjsdl[0];
+    Vector3 v1 = jfdkalfjsdl[1];
+    Vector3 v2 = jfdkalfjsdl[2];
+    Vector3 v3 = jfdkalfjsdl[3];
+    Vector3 v4 = jfdkalfjsdl[4];
 
     Vector3 t0[3] = {v0, v1, v2};
     Vector2 uv[3] = { {0, 0}, {0, 1}, {1, 1} };
-    tinyrenderer::draw_triangle(t0, uv, diffuse_texture, 1, depth_buffer, target_render_size_x, target_render_size_y);
+    // tinyrenderer::draw_triangle(t0, uv, diffuse_texture, 1, depth_buffer, target_render_size_x, target_render_size_y);
 
     delete[] depth_buffer;
 }
 
-void linear_transofrmations_example() {
-    std::vector<std::array<int, 3>> indices;
-    std::vector<Vector3> vrtxs;
-
-    indices.push_back({0, 1, 2});
-    indices.push_back({1, 2, 3});
-
-    for (const Vector3 &vertex : vertices) {
-        vrtxs.push_back(vertex);
-    }
-    tinyrenderer::draw_triangles(
-        vrtxs, 
-        indices,
-        target_render_size_x,
-        target_render_size_y,
-        RAYWHITE
-    );
-
-
-    // .707 = cos(45deg) = sin(45deg)
-    Matrix m = {
-        1, -.707, 0,
-        0,     1, 0,
-        0,     0, 0,
-    };
-
-    vrtxs.clear();
-    for (const Vector3 &vertex : vertices) {
-        vrtxs.push_back(Vector3Transform(vertex, m));
-    }
-
-    tinyrenderer::draw_triangles(
-        vrtxs, 
-        indices,
-        target_render_size_x,
-        target_render_size_y,
-        RED
-    );
-
-
-    m.m1 = .707;
-    vrtxs.clear();
-    for (const Vector3 &vertex : vertices) {
-        vrtxs.push_back(Vector3Transform(vertex, m));
-    }
-    tinyrenderer::draw_triangles(
-        vrtxs, 
-        indices,
-        target_render_size_x,
-        target_render_size_y,
-        GREEN
-    );
-
-    m.m0 = .707;
-    m.m5 = .707;
-
-    vrtxs.clear();
-    for (const Vector3 &vertex : vertices) {
-        vrtxs.push_back(Vector3Transform(vertex, m));
-    }
-    tinyrenderer::draw_triangles(
-        vrtxs, 
-        indices,
-        target_render_size_x,
-        target_render_size_y,
-        BLUE
-    );
-}
 
 /*
     element indices:
@@ -245,16 +185,16 @@ void shape_perspective() {
     indices.push_back({0, 1, 2});
     indices.push_back({1, 2, 3});
 
-    for (const Vector3 &vertex : vertices) {
+    for (const Vector3 &vertex : jfdkalfjsdl) {
         vrtxs.push_back(vertex);
     }
-    tinyrenderer::draw_triangles(
-        vrtxs, 
-        indices,
-        target_render_size_x,
-        target_render_size_y,
-        RAYWHITE
-    );
+    // tinyrenderer::draw_triangles(
+    //     vrtxs, 
+    //     indices,
+    //     target_render_size_x,
+    //     target_render_size_y,
+    //     RAYWHITE
+    // );
 
     indices.push_back({4, 5, 6});
     indices.push_back({5, 6, 7});
@@ -266,7 +206,7 @@ void shape_perspective() {
     // Matrix view_projection = MatrixMultiply(MatrixMultiply(view, world), projection);
     Matrix view_projection = MatrixMultiply(projection, MatrixMultiply(view, world));
 
-    for (const Vector3 &v_local: vertices) {
+    for (const Vector3 &v_local: jfdkalfjsdl) {
         // Vector3 point = Vector3Transform(vertex, MatrixMultiply(transform, projection));
         // Vector3 point = vertex;
         Vector4 point = Vector4Transform({
@@ -289,13 +229,13 @@ void shape_perspective() {
         });
     }
 
-    tinyrenderer::draw_triangles(
-        vrtxs, 
-        indices,
-        target_render_size_x,
-        target_render_size_y,
-        YELLOW
-    );
+    // tinyrenderer::draw_triangles(
+    //     vrtxs,
+    //     indices,
+    //     target_render_size_x,
+    //     target_render_size_y,
+    //     YELLOW
+    // );
 
     // tinyrenderer::draw_axis(target_render_size_x, target_render_size_y);
 }
@@ -317,7 +257,7 @@ int main(int argc, char **argv) {
 
     RenderTexture2D render_texture = LoadRenderTexture(target_render_size_x, target_render_size_y);
 
-    tinyrenderer::program::PerspectiveProjection example_a;
+    tinyrenderer::program::PerspectiveProjection perspective_projection;
     tinyrenderer::program::BackgroundGrid bg_grid;
     tinyrenderer::program::DrawRectangles draw_rectangles;
 
@@ -335,16 +275,13 @@ int main(int argc, char **argv) {
         color_buffer.clear(0x000000FF);
 
         // render_vertices(diffuse_img);
-        // render_texture
-        // render_with_shading(frame_counter, model, light_dir, diffuse_img);
-        // examples::linear_transofrmations_example();
         // examples::shape_perspective();
-        // example_a.run(near_clipping_plane, target_render_size_x, target_render_size_y);
-        // tinyrenderer::program::BackgroundGrid
         bg_grid.run(&color_buffer);
-        draw_rectangles.run(&color_buffer);
+        // draw_rectangles.run(&color_buffer);
+        render_with_shading(&color_buffer, frame_counter, model, light_dir, diffuse_img);
         tinyrenderer::draw_axis(&color_buffer);
-        example_a.run(&color_buffer, near_clipping_plane);
+        tinyrenderer::linear_transformations(&color_buffer);
+        // perspective_projection.run(&color_buffer, near_clipping_plane);
 
         color_buffer.draw_to_texture();
 

@@ -1,7 +1,7 @@
 #ifndef __PERS_PROJ__
 #define __PERS_PROJ__
 
-#include "color_buffer.h"
+#include "../color_buffer.h"
 
 namespace tinyrenderer::program {
 struct PerspectiveProjection {

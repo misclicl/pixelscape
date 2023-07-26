@@ -7,6 +7,10 @@
 #include "raymath.h"
 #include "color_buffer.h"
 
+uint32_t color_to_uint32(Color color) {
+    return ((uint32_t)color.r << 24) | ((uint32_t)color.g << 16) | ((uint32_t)color.b << 8) | (uint32_t)color.a;
+}
+
 namespace tinyrenderer {
 
 void draw_line(Vector3 p0, Vector3 p1, Color color) {
@@ -65,10 +69,16 @@ void draw_line(
     }
 }
 
-void draw_triangle_wireframe(Vector3 p0, Vector3 p1, Vector3 p2, Color color) {
-    draw_line(p0, p1, color);
-    draw_line(p1, p2, color);
-    draw_line(p2, p0, color);
+void draw_triangle_wireframe(
+    ColorBuffer *color_buffer,
+    Vector3 p0,
+    Vector3 p1,
+    Vector3 p2,
+    uint32_t color
+) {
+    draw_line(color_buffer, p0, p1, color);
+    draw_line(color_buffer, p1, p2, color);
+    draw_line(color_buffer, p2, p0, color);
 }
 
 Vector3 to_screen_coord(Vector3 &v, int screen_width, int screen_height) {
@@ -77,27 +87,6 @@ Vector3 to_screen_coord(Vector3 &v, int screen_width, int screen_height) {
         v.y + (float)screen_height / 2,
         v.z
     };
-}
-
-void draw_triangles(
-    std::vector<Vector3> &vertices, 
-    std::vector<std::array<int, 3>> &t_indices, 
-    int screen_width,
-    int screen_height,
-    Color color
-) {
-    for (std::array<int, 3> t : t_indices) {
-        Vector3 v1 = vertices[t[0]];
-        Vector3 v2 = vertices[t[1]];
-        Vector3 v3 = vertices[t[2]];
-
-        tinyrenderer::draw_triangle_wireframe(
-            to_screen_coord(v1, screen_width, screen_height), 
-            to_screen_coord(v2, screen_width, screen_height),
-            to_screen_coord(v3, screen_width, screen_height),
-            color
-        );
-    }
 }
 
 // TODO: hold dimensions in an instance
@@ -133,15 +122,16 @@ float edgeFunction(const Vector3 &a, const Vector3 &b, const Vector3 &c) {
 }
 
 void draw_triangle(
+    ColorBuffer *color_buffer,
     const Vector3 *vertices,
     const Vector2 (&uv_coords)[3],
     Image &diffuse_texture,
     const float intencity, 
-    float *zbuffer,
-
-    int screen_width,
-    int screen_height
+    float *zbuffer
 ) {
+    int screen_width = color_buffer->width;
+    int screen_height = color_buffer->height;
+
     int *boundaries = new int[4];
     triangle_bb(vertices, boundaries, screen_width, screen_height);
 
@@ -192,7 +182,8 @@ void draw_triangle(
                     //     255,
                     // };
 
-                    DrawPixel(p.x, p.y, color);
+                    // DrawPixel(p.x, p.y, color);
+                    color_buffer->set_pixel(p.x, p.y, color_to_uint32(color));
                 }
             }
         }
@@ -223,7 +214,7 @@ void draw_rectangle(
 }
 
 void draw_axis(ColorBuffer *color_buffer) {
-    const int unit = 100;
+    const int unit = 64;
     float half_height = (float)color_buffer->width / 2;
     float half_width = (float)color_buffer->height / 2;
     float axis_length = unit;
@@ -231,5 +222,26 @@ void draw_axis(ColorBuffer *color_buffer) {
 
     draw_line(color_buffer, origin, {half_width, half_height + axis_length, 1}, 0x00FF00FF);
     draw_line(color_buffer, origin, {half_width + axis_length, half_height, 1}, 0xFF0000FF);
+}
+
+void draw_triangles(
+    ColorBuffer *color_buffer,
+    std::vector<Vector3> &vertices, 
+    std::vector<std::array<int, 3>> &t_indices, 
+    uint32_t color
+) {
+    for (std::array<int, 3> t : t_indices) {
+        Vector3 v1 = vertices[t[0]];
+        Vector3 v2 = vertices[t[1]];
+        Vector3 v3 = vertices[t[2]];
+
+        tinyrenderer::draw_triangle_wireframe(
+            color_buffer,
+            to_screen_coord(v1, color_buffer->width, color_buffer->height), 
+            to_screen_coord(v2, color_buffer->width, color_buffer->height),
+            to_screen_coord(v3, color_buffer->width, color_buffer->height),
+            color
+        );
+    }
 }
 }
