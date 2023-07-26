@@ -3,6 +3,7 @@
 #include "raylib.h"
 
 #include "color_buffer.h"
+#include "tiny_color.h"
 
 namespace tinyrenderer {
 uint32_t *ColorBuffer::get_buffer_pixel(int x, int y) {
@@ -20,6 +21,10 @@ uint32_t *ColorBuffer::get_buffer_pixel(int idx) {
 }
 
 void ColorBuffer::set_pixel(int x, int y, uint32_t color) {
+    if (x < 0 || x >= this->width || y < 0 || y >= this->height) {
+        return;
+    }
+
     uint32_t *pixel = this->get_buffer_pixel(x, y);
 
     *pixel = color;
@@ -43,13 +48,7 @@ void ColorBuffer::draw_to_texture() {
     for (size_t i = 0; i < width * height; ++i) {
         // Retrieve buffer color
         uint32_t *pixel = get_buffer_pixel(i);
-
-        // Transform color
-        Color color;
-        color.r = (*pixel >> 24) & 0xFF; // Red channel
-        color.g = (*pixel >> 16) & 0xFF; // Green channel
-        color.b = (*pixel >> 8) & 0xFF;  // Blue channel
-        color.a = *pixel & 0xFF;         // Alpha channel
+        Color color = make_raylib(*pixel);
 
         // Draw pixel
         int x = i % width;
