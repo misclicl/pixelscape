@@ -6,6 +6,7 @@
 #include "examples/background_grid.h"
 #include "examples/draw_rectangles.h"
 #include "examples/projection.h"
+#include "examples/rendering_cube.h"
 
 #include "examples/linear_transformations.h"
 
@@ -252,6 +253,8 @@ int main(int argc, char **argv) {
     tinyrenderer::program::BackgroundGrid bg_grid;
     tinyrenderer::program::DrawRectangles draw_rectangles;
     tinyrenderer::program::Projection projection;
+    tinyrenderer::CubeRendering::program cube_rendering;
+    cube_rendering.init();
 
     tinyrenderer::ColorBuffer color_buffer;
     color_buffer.width = target_render_size_x;
@@ -269,10 +272,12 @@ int main(int argc, char **argv) {
         // examples::shape_perspective();
         // bg_grid.run(&color_buffer);
         // draw_rectangles.run(&color_buffer);
-        projection.run(&color_buffer, frame_counter);
+        // projection.run(&color_buffer, frame_counter);
         // render_with_shading(&color_buffer, frame_counter, model, light_dir, diffuse_img);
         // tinyrenderer::draw_axis(&color_buffer);
         // tinyrenderer::linear_transformations(&color_buffer);
+        // FIXME: rename delta, or change it to actual delta
+        cube_rendering.run(&color_buffer, frame_counter);
 
         color_buffer.draw_to_texture();
 

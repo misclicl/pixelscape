@@ -5,6 +5,9 @@
 #include <vector>
 
 #include "raylib.h"
+
+#include "tiny_math.h"
+#include "tiny_color.h"
 #include "color_buffer.h"
 
 namespace tinyrenderer {
@@ -26,12 +29,27 @@ void draw_triangle_wireframe(
     uint32_t color
 );
 
+void draw_triangle_wireframe(
+    ColorBuffer *color_buffer,
+    Vec3f *vertices,
+    TinyColor color
+);
+
 void draw_triangle(
     ColorBuffer *color_buffer,
     const Vector3 *vertices,
     const Vector2 (&uv_coords)[3],
     Image &diffuse_texture,
     const float intencity, 
+    float *zbuffer
+);
+
+void draw_triangle(
+    ColorBuffer *color_buffer,
+    const Vec3f *vertices,
+    // const Vector2 (&uv_coords)[3],
+    // Image &diffuse_texture,
+    // const float intencity, 
     float *zbuffer
 );
 
