@@ -7,8 +7,9 @@
 
 tinyrenderer::Model::Model(const char *filename) : verts_(), faces_(), uv_coords_() {
     std::ifstream in;
-    in.open (filename, std::ifstream::in);
-    if (in.fail()) return;
+    in.open(filename, std::ifstream::in);
+    if (in.fail())
+        return;
     std::string line;
 
     while (!in.eof()) {

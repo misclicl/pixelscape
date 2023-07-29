@@ -58,3 +58,4 @@ void ColorBuffer::draw_to_texture() {
     }
 };
 }
+

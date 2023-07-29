@@ -1,11 +1,11 @@
+#include <array>
 #include <cstdlib>
 #include <vector>
-#include <array>
 
-#include "raylib.h"
-#include "display.h"
-#include "raymath.h"
 #include "color_buffer.h"
+#include "display.h"
+#include "raylib.h"
+#include "raymath.h"
 #include "tiny_color.h"
 #include "tiny_math.h"
 
@@ -17,13 +17,12 @@ void draw_line(
     ColorBuffer *color_buffer,
     Vector3 p0,
     Vector3 p1,
-    TinyColor color
-) {
+    TinyColor color) {
     int x0 = p0.x;
     int y0 = p0.y;
     int x1 = p1.x;
     int y1 = p1.y;
-    
+
     bool isSteep = false;
 
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
@@ -40,9 +39,9 @@ void draw_line(
     int dx = x1 - x0;
     int dy = y1 - y0;
 
-    float y_step = std::abs(dy/float(dx));
-    float y_overflow = 0; 
-    int y = y0; 
+    float y_step = std::abs(dy / float(dx));
+    float y_overflow = 0;
+    int y = y0;
 
     for (int x = x0; x <= x1; x++) {
         if (y >= color_buffer->height || x >= color_buffer->width) {
@@ -66,18 +65,16 @@ void draw_line(
     }
 }
 
-
 void draw_line(
     ColorBuffer *color_buffer,
     Vec3f *p0,
     Vec3f *p1,
-    TinyColor color
-) {
+    TinyColor color) {
     int x0 = p0->x;
     int y0 = p0->y;
     int x1 = p1->x;
     int y1 = p1->y;
-    
+
     bool isSteep = false;
 
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
@@ -94,9 +91,9 @@ void draw_line(
     int dx = x1 - x0;
     int dy = y1 - y0;
 
-    float slope = std::abs(dy/float(dx));
-    float y_overflow = 0; 
-    int y = y0; 
+    float slope = std::abs(dy / float(dx));
+    float y_overflow = 0;
+    int y = y0;
 
     for (int x = x0; x <= x1; x++) {
         if (isSteep) {
@@ -121,8 +118,7 @@ void draw_triangle_wireframe(
     Vector3 p0,
     Vector3 p1,
     Vector3 p2,
-    TinyColor color
-) {
+    TinyColor color) {
     draw_line(color_buffer, p0, p1, color);
     draw_line(color_buffer, p1, p2, color);
     draw_line(color_buffer, p2, p0, color);
@@ -131,19 +127,17 @@ void draw_triangle_wireframe(
 void draw_triangle_wireframe(
     ColorBuffer *color_buffer,
     Vec3f *vertices,
-    TinyColor color
-) {
+    TinyColor color) {
     draw_line(color_buffer, &vertices[0], &vertices[1], color);
     draw_line(color_buffer, &vertices[1], &vertices[2], color);
     draw_line(color_buffer, &vertices[2], &vertices[0], color);
 }
 
 Vector3 to_screen_coord(Vector3 &v, int screen_width, int screen_height) {
-    return Vector3 {
-        v.x + (float)screen_width/ 2,
+    return Vector3{
+        v.x + (float)screen_width / 2,
         v.y + (float)screen_height / 2,
-        v.z
-    };
+        v.z};
 }
 
 // TODO: hold dimensions in an instance
@@ -152,7 +146,7 @@ inline void triangle_bb(const Vector3 *vertices, int *boundaries, int screen_wid
     int x_end = ceil(std::max(vertices[0].x, std::max(vertices[1].x, vertices[2].x)));
 
     int y_start = floor(std::min(vertices[0].y, std::min(vertices[1].y, vertices[2].y)));
-    int y_end = ceil (std::max(vertices[0].y, std::max(vertices[1].y, vertices[2].y)));
+    int y_end = ceil(std::max(vertices[0].y, std::max(vertices[1].y, vertices[2].y)));
 
     boundaries[0] = std::max(0, x_start);
     boundaries[1] = std::min(screen_width, x_end);
@@ -160,7 +154,7 @@ inline void triangle_bb(const Vector3 *vertices, int *boundaries, int screen_wid
     boundaries[3] = std::min(screen_height, y_end);
 }
 
-void barycentric_coords(Vector3 const *vertices, Vector3 const p, float &u, float &v, float&w) {
+void barycentric_coords(Vector3 const *vertices, Vector3 const p, float &u, float &v, float &w) {
     // Formula: P = A + w1 * (B - A) + w2 * (C - A)
     //          P = A + u * vAB + vAC
     Vector3 vAB = Vector3Subtract(vertices[1], vertices[0]);
@@ -183,9 +177,8 @@ void draw_triangle(
     const Vector3 *vertices,
     const Vector2 (&uv_coords)[3],
     Image &diffuse_texture,
-    const float intencity, 
-    float *zbuffer
-) {
+    const float intencity,
+    float *zbuffer) {
     int screen_width = color_buffer->width;
     int screen_height = color_buffer->height;
 
@@ -198,7 +191,7 @@ void draw_triangle(
     for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
         for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
             float u, v, w;
-            barycentric_coords(vertices, Vector3 {(float)p.x, (float)p.y, 0}, u, v, w);
+            barycentric_coords(vertices, Vector3{(float)p.x, (float)p.y, 0}, u, v, w);
 
             if (w >= 0 && v >= 0 && u >= 0) {
                 p.z = u * vertices[0].z + v * vertices[1].z + w * vertices[2].z;
@@ -219,14 +212,13 @@ void draw_triangle(
 
                     int index_uv = (v * diffuse_texture.height) + u;
 
-                    Color* data = (Color*)diffuse_texture.data;
+                    Color *data = (Color *)diffuse_texture.data;
                     Color color = GetPixelColor(data + index_uv, diffuse_texture.format);
                     color = {
                         (unsigned char)(color.r * intencity),
                         (unsigned char)(color.g * intencity),
                         (unsigned char)(color.b * intencity),
-                        color.a
-                    };
+                        color.a};
 
                     // ######## UV ENDS ##########
 
@@ -254,8 +246,7 @@ void draw_rectangle(
     Vector2 position,
     int size_x,
     int size_y,
-    TinyColor color
-) {
+    TinyColor color) {
     int x_start = std::max(0, (int)position.x);
     int x_end = std::min(color_buffer->height, (int)position.x + size_x);
 
@@ -267,7 +258,6 @@ void draw_rectangle(
             color_buffer->set_pixel(x, y, color);
         }
     }
-
 }
 
 void draw_axis(ColorBuffer *color_buffer) {
@@ -283,10 +273,10 @@ void draw_axis(ColorBuffer *color_buffer) {
 
 void draw_triangles(
     ColorBuffer *color_buffer,
-    std::vector<Vector3> &vertices, 
-    std::vector<std::array<int, 3>> &t_indices, 
-    TinyColor color
-) {
+    std::vector<Vector3> &vertices,
+    std::vector<std::array<int, 3>> &t_indices,
+    TinyColor color) {
+
     for (std::array<int, 3> t : t_indices) {
         Vector3 v1 = vertices[t[0]];
         Vector3 v2 = vertices[t[1]];
@@ -294,11 +284,10 @@ void draw_triangles(
 
         tinyrenderer::draw_triangle_wireframe(
             color_buffer,
-            to_screen_coord(v1, color_buffer->width, color_buffer->height), 
+            to_screen_coord(v1, color_buffer->width, color_buffer->height),
             to_screen_coord(v2, color_buffer->width, color_buffer->height),
             to_screen_coord(v3, color_buffer->width, color_buffer->height),
-            color
-        );
+            color);
     }
 }
-}
+} // namespace tinyrenderer

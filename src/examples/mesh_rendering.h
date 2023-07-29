@@ -6,15 +6,16 @@
 #include "../color_buffer.h"
 #include "../mesh.h"
 
-namespace tinyrenderer::CubeRendering {
+namespace tinyrenderer::MeshRendering {
 enum Mode {
     Wireframe = 0,
     Triangles = 1,
 };
 
-struct program {
+struct Program {
     void init();
     void run(ColorBuffer *color_buffer, int delta);
+    void cleanup();
 
     Mesh mesh;
     Mode mode;

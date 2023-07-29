@@ -13,7 +13,7 @@ struct Face {
 class Model {
 private:
     std::vector<Vector3> verts_;
-    std::vector<Face> faces_;;
+    std::vector<Face> faces_;
     std::vector<Vector2> uv_coords_;
 
 public:

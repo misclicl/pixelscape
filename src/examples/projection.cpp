@@ -8,7 +8,7 @@
 
 namespace tinyrenderer {
 Vec3f camera_position = {0, 0, 2};
-float fov_factor = 90;
+float fov_factor = 70;
 
 void orthographic(ColorBuffer *color_buffer, Vec3f *vertices, size_t size) {
     TinyColor color = 0x9F9F9FFF;
@@ -87,7 +87,7 @@ void program::Projection::run(ColorBuffer *color_buffer, int delta) {
         }
     }
 
-    orthographic(color_buffer, vertices, size * size * size);
+    // orthographic(color_buffer, vertices, size * size * size);
     perspective(color_buffer, vertices, size * size * size, delta);
     free(vertices);
 }

@@ -17,7 +17,7 @@ namespace tinyrenderer {
  *
  */
 
-Vec3f vertices[MESH_VERTICES_COUNT] = {
+Vec3f cube_vertices[CUBE_VERTICES_COUNT] = {
     // # 0
     { 1, -1, -1}, // 0
     {-1, -1, -1}, // 1
@@ -30,7 +30,7 @@ Vec3f vertices[MESH_VERTICES_COUNT] = {
     { 1,  1,  1}, // 7
 };
 
-TriangleFace faces[MESH_FACES_COUNT] = {
+TriangleFace cube_faces[CUBE_FACES_COUNT] = {
     // Using OpenGL order
     // top
     {0, 1, 2},
@@ -51,5 +51,11 @@ TriangleFace faces[MESH_FACES_COUNT] = {
     {2, 1, 5},
     {2, 5, 6}
 };
-}
+
+struct Vertex {
+    Vec3f *position = {};
+    Vec3f *normals = {};
+    Vec2f *uv = {};
+};
+} // namespace tinyrenderer
 

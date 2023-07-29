@@ -6,16 +6,18 @@
 #include "examples/background_grid.h"
 #include "examples/draw_rectangles.h"
 #include "examples/projection.h"
-#include "examples/rendering_cube.h"
+#include "examples/mesh_rendering.h"
 
 #include "examples/linear_transformations.h"
 
+#include "mesh.h"
 #include "raylib.h"
 #include "raymath.h"
 
 #include "color_buffer.h"
 #include "display.h"
 #include "model.h"
+// #include "loader_obj.h"
 
 const int window_width = 512;
 const int window_height = 512;
@@ -29,18 +31,6 @@ const float cube_halfsize = .5f;
 
 const float front = -cube_halfsize;
 const float back = cube_halfsize;
-
-Vector3 vertices[8] = {
-    Vector3{-cube_halfsize, -cube_halfsize, front},
-    Vector3{cube_halfsize, -cube_halfsize, front},
-    Vector3{-cube_halfsize, cube_halfsize, front},
-    Vector3{cube_halfsize, cube_halfsize, front},
-
-    Vector3{-cube_halfsize, -cube_halfsize, back},
-    Vector3{cube_halfsize, -cube_halfsize, back},
-    Vector3{-cube_halfsize, cube_halfsize, back},
-    Vector3{cube_halfsize, cube_halfsize, back},
-};
 
 const float far_clipping_plane = 10000;
 const float near_clipping_plane = .1;
@@ -116,125 +106,6 @@ void render_with_shading(
     delete[] depth_buffer;
 }
 
-namespace examples {
-void render_vertices(Image &diffuse_texture) {
-    float *depth_buffer = new float[target_render_size_x * target_render_size_y];
-
-    for (uint32_t i = 0; i < target_render_size_x * target_render_size_y; ++i) {
-        depth_buffer[i] = -far_clipping_plane;
-    }
-
-    Vector3 v0 = vertices[0];
-    Vector3 v1 = vertices[1];
-    Vector3 v2 = vertices[2];
-    Vector3 v3 = vertices[3];
-    Vector3 v4 = vertices[4];
-
-    Vector3 t0[3] = {v0, v1, v2};
-    Vector2 uv[3] = {{0, 0}, {0, 1}, {1, 1}};
-    // tinyrenderer::draw_triangle(t0, uv, diffuse_texture, 1, depth_buffer, target_render_size_x, target_render_size_y);
-
-    delete[] depth_buffer;
-}
-
-/*
-    element indices:
-
-    0  4  8   12
-    1  5  9   13
-    2  6  10  14
-    3  7  11  15
-*/
-Matrix create_viewport_matrix(int y, int x, int width, int height) {
-    Matrix m = {0};
-    int depth = 1000;
-
-    m.m12 = x + width / 2.f;
-    m.m9 = y + height / 2.f;
-    m.m14 = depth / 2.f;
-
-    m.m0 = width / 2.f;
-    m.m5 = height / 2.f;
-    m.m10 = depth / 2.f;
-
-    return m;
-}
-
-Matrix create_perspective(float fov, float a, float znear, float zfar) {
-    Matrix m = Matrix();
-
-    m.m0 = a * (1 / tan(fov / 2));
-    m.m5 = 1 / tan(fov / 2);
-    m.m10 = zfar / (zfar - znear);
-    m.m14 = (-zfar * znear) / (zfar - znear);
-    m.m11 = 1.0;
-
-    return m;
-}
-
-void shape_perspective() {
-    std::vector<std::array<int, 3>> indices;
-    std::vector<Vector3> vrtxs;
-
-    indices.push_back({0, 1, 2});
-    indices.push_back({1, 2, 3});
-
-    for (const Vector3 &vertex : vertices) {
-        vrtxs.push_back(vertex);
-    }
-    // tinyrenderer::draw_triangles(
-    //     vrtxs,
-    //     indices,
-    //     target_render_size_x,
-    //     target_render_size_y,
-    //     RAYWHITE
-    // );
-
-    indices.push_back({4, 5, 6});
-    indices.push_back({5, 6, 7});
-    vrtxs.clear();
-
-    Matrix world = MatrixTranslate(0, 0, 2);
-    Matrix view = MatrixLookAt({0, 0, 0}, {0, 0, 1}, {0, 1, 0});
-    Matrix projection = MatrixPerspective(45 * DEG2RAD, 1.f, near_clipping_plane, far_clipping_plane);
-    // Matrix view_projection = MatrixMultiply(MatrixMultiply(view, world), projection);
-    Matrix view_projection = MatrixMultiply(projection, MatrixMultiply(view, world));
-
-    for (const Vector3 &v_local : vertices) {
-        // Vector3 point = Vector3Transform(vertex, MatrixMultiply(transform, projection));
-        // Vector3 point = vertex;
-        Vector4 point = Vector4Transform({v_local.x,
-                                          v_local.y,
-                                          v_local.z,
-                                          1.0f},
-                                         view_projection);
-
-        if (point.w != 0) {
-            point.x /= point.w;
-            point.y /= point.w;
-            point.z /= point.w;
-        }
-
-        vrtxs.push_back({
-            point.x,
-            point.y,
-            point.z,
-        });
-    }
-
-    // tinyrenderer::draw_triangles(
-    //     vrtxs,
-    //     indices,
-    //     target_render_size_x,
-    //     target_render_size_y,
-    //     YELLOW
-    // );
-
-    // tinyrenderer::draw_axis(target_render_size_x, target_render_size_y);
-}
-
-} // namespace examples
-
 int main(int argc, char **argv) {
     InitWindow(window_width, window_height, "tinyrenderer");
     SetTargetFPS(60);
@@ -253,8 +124,12 @@ int main(int argc, char **argv) {
     tinyrenderer::program::BackgroundGrid bg_grid;
     tinyrenderer::program::DrawRectangles draw_rectangles;
     tinyrenderer::program::Projection projection;
-    tinyrenderer::CubeRendering::program cube_rendering;
+    tinyrenderer::MeshRendering::Program cube_rendering;
     cube_rendering.init();
+
+    // std::vector<tinyrenderer::Vec3f> vs;
+    // std::vector<tinyrenderer::TriangleFace> fs;
+    // load_mesh(&vs, &fs);
 
     tinyrenderer::ColorBuffer color_buffer;
     color_buffer.width = target_render_size_x;
@@ -265,6 +140,7 @@ int main(int argc, char **argv) {
     while (!WindowShouldClose()) {
         BeginTextureMode(render_texture);
         ClearBackground(BLACK);
+    // printf("HELLLLLLLLLLLOOOOOOOOOO");
 
         color_buffer.clear(0x000000FF);
 
