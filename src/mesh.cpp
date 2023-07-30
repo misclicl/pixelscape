@@ -49,13 +49,5 @@ TriangleFace cube_faces[CUBE_FACES_COUNT] = {
     {0, 7, 4},
     // right
     {2, 1, 5},
-    {2, 5, 6}
-};
-
-struct Vertex {
-    Vec3f *position = {};
-    Vec3f *normals = {};
-    Vec2f *uv = {};
-};
+    {2, 5, 6}};
 } // namespace tinyrenderer
-

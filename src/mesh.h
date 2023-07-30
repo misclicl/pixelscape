@@ -18,10 +18,14 @@ struct TriangleFace {
 extern Vec3f cube_vertices[CUBE_VERTICES_COUNT];
 extern TriangleFace cube_faces[CUBE_FACES_COUNT];
 
-struct Vertex;
+struct Vertex {
+    Vec3f *position = {};
+    Vec3f *normals = {};
+    Vec2f *uv = {};
+};
 
 struct Mesh {
-    Vec3f *vertices;
+    Vertex *vertices;
     TriangleFace *faces;
 
     int face_count = 0;
