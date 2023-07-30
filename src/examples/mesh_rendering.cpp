@@ -73,19 +73,19 @@ void render_mesh_wireframe(ColorBuffer *color_buffer, Mesh *mesh, Mode mode) {
 void MeshRendering::Program::init() {
     mode = Mode::Wireframe;
 
+    char* bunny_obj_path = (char *)"assets/bunny-lr.obj";
+    char* cube_obj_path = (char *)"assets/cube.obj";
+    char* head_obj_path = (char *)"assets/head.obj";
+
     std::vector<Vec3f> vertices;
     std::vector<TriangleFace> faces;
-    load_mesh(&vertices, &faces);
 
-    const char* filename = "assets/cube.obj";
-    parse_mesh(filename);
+    parse_mesh(head_obj_path, &vertices, &faces);
 
     mesh.vertices = (Vertex *)malloc(vertices.size() * sizeof(Vertex));
     mesh.faces = (TriangleFace *)malloc(faces.size() * sizeof(TriangleFace));
 
     for (int i = 0; i < vertices.size(); i++) {
-
-        // TODO: cleanup
         mesh.vertices[i].position = (Vec3f *)malloc(sizeof(Vec3f));
         *(mesh.vertices[i].position) = vertices[i];
     }

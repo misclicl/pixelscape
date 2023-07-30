@@ -76,6 +76,10 @@ struct Vec3 {
         return *this;
     }
 
+    bool operator==(const Vec3<T> &v) const {
+        return x == v.x && y == v.y && z == v.y;
+    }
+
     Vec3<T> operator+(const Vec3<T> &v) const {
         return Vec3<T>(x + v.x, y + v.y, z + v.z);
     }

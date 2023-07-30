@@ -22,6 +22,10 @@ struct Vertex {
     Vec3f *position = {};
     Vec3f *normals = {};
     Vec2f *uv = {};
+
+    bool operator==(const Vertex &other) const {
+        return *position == *(other.position);
+    }
 };
 
 struct Mesh {
@@ -34,4 +38,5 @@ struct Mesh {
 };
 
 } // namespace tinyrenderer
+
 #endif

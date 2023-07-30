@@ -3,6 +3,8 @@
 
 #include <fstream>
 #include <sstream>
+#include <string>
+#include <unordered_map>
 
 // TODO:
 // - include as a submodule
@@ -16,12 +18,13 @@
 namespace tinyrenderer {
 
 // TODO: do I need static here?
+// TODO: Obsolete. I use tinyobjloader instead now
 static void load_mesh(
+    char* file_path,
     std::vector<Vec3f> *vertices, 
     std::vector<TriangleFace> *faces
 ) {
-    // std::ifstream in("assets/bunny-lr.obj");
-    std::ifstream in("assets/cube.obj");
+    std::ifstream in(file_path);
     char trash;
 
     if (!in.is_open()) {
@@ -72,8 +75,15 @@ static void load_mesh(
     in.close();
 }
 
-// TODO: reconsider inline
-inline void parse_mesh(const char *filepath) {
+// TODO: reconsider static
+// TODO: consider updating api:
+// - Option 1. Pass Mesh * and update its fields
+// - Option 2. Use index/vertex buffers instead of this
+static void parse_mesh(
+    char *filepath, 
+    std::vector<Vec3f> *vertices,
+    std::vector<TriangleFace> *faces
+) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
     std::vector<tinyobj::material_t> materials;
@@ -83,29 +93,42 @@ inline void parse_mesh(const char *filepath) {
         throw std::runtime_error(warn + err);
     }
 
-    std::vector<Vec3f> vertices = {};
-    std::vector<Vec3f> faces= {};
+    std::unordered_map<std::string, int> unique_vertices;
 
-    // TODO: find a way to write to the mesh;
-    Mesh *mesh = (Mesh *)malloc(sizeof(Mesh));
+    // std::vector<Vec3f> vertex_buffer = {};
+    std::vector<uint32_t> index_buffer = {};
 
     for (size_t i = 0; i < shapes.size(); i++) {
         tinyobj::shape_t *shape = &shapes[i];
         for (size_t j = 0; j < shape->mesh.indices.size(); j++) {
-            tinyobj::index_t *index = &shape->mesh.indices[j];
+            auto& face = shape->mesh.indices[j]; // stores info from 'f a/b/c ...'
 
-            Vec3f vertex;
+            Vec3f vertex = {
+                attrib.vertices[3 * face.vertex_index + 0],
+                attrib.vertices[3 * face.vertex_index + 1],
+                attrib.vertices[3 * face.vertex_index + 2]
+            };
 
-            if (index->vertex_index) {
-                vertex = {
-                    attrib.vertices[3 * index->vertex_index + 0],
-                    attrib.vertices[3 * index->vertex_index + 1],
-                    attrib.vertices[3 * index->vertex_index + 2],
-                };
+            std::string key = std::to_string(face.vertex_index);
+
+            if (unique_vertices.count(key) == 0) {
+                unique_vertices[key] = static_cast<uint32_t>(vertices->size());
+                // vertex_buffer.push_back(vertex);
+                vertices->push_back(vertex);
             }
 
-            vertices.push_back(vertex);
+            index_buffer.push_back(unique_vertices[key]);
         }
+    }
+
+    for (size_t i = 2; i < index_buffer.size(); i += 3) {
+        TriangleFace face = {};
+
+        face.a = index_buffer[i - 2];
+        face.b = index_buffer[i - 1];
+        face.c = index_buffer[i];
+    
+        faces->push_back(face);
     }
 }
 }
