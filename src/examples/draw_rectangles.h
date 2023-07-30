@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "../color_buffer.h"
+#include "../core/color_buffer.h"
 
 namespace tinyrenderer::program {
 struct DrawRectangles {

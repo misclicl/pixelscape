@@ -1,8 +1,8 @@
 #include <cstdio>
 #include <stdlib.h>
 
-#include "../tiny_color.h"
-#include "../tiny_math.h"
+#include "../core/tiny_color.h"
+#include "../core/tiny_math.h"
 #include "projection.h"
 #include "raylib.h"
 

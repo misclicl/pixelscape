@@ -1,7 +1,7 @@
 #include <stdint.h>
 
-#include "../color_buffer.h"
-#include "../display.h"
+#include "../core/color_buffer.h"
+#include "../core/display.h"
 #include "background_grid.h"
 
 namespace tinyrenderer {

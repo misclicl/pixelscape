@@ -1,7 +1,7 @@
 #ifndef __BACKGROUND_GRID__
 #define __BACKGROUND_GRID__
 
-#include "../color_buffer.h"
+#include "../core/color_buffer.h"
 #include <stdint.h>
 
 namespace tinyrenderer::program {

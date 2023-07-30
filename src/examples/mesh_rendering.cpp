@@ -3,20 +3,22 @@
 
 #include "raylib.h"
 
-#include "../display.h"
+#include "../core/display.h"
+#include "../core/tiny_color.h"
+#include "../core/tiny_math.h"
+
 #include "../mesh.h"
-#include "../tiny_color.h"
-#include "../tiny_math.h"
 #include "../loader_obj.h"
 
 #include "mesh_rendering.h"
 
+#define ROTATION_SPEED 1.2;
+
 namespace tinyrenderer::MeshRendering {
-void render_mesh_wireframe(ColorBuffer *color_buffer, Mesh *mesh, Mode mode) {
+void render_mesh_wireframe(ColorBuffer *color_buffer, Mesh *mesh, Mode mode, TinyColor color) {
     Vec3f camera_position = {0, 0, 2};
     float fov_factor = 90;
 
-    TinyColor color = 0x9F9F9FFF;
 
     int half_width = color_buffer->width / 2;
     int half_height = color_buffer->height / 2;
@@ -80,7 +82,7 @@ void MeshRendering::Program::init() {
     std::vector<Vec3f> vertices;
     std::vector<TriangleFace> faces;
 
-    parse_mesh(head_obj_path, &vertices, &faces);
+    parse_mesh(cube_obj_path, &vertices, &faces);
 
     mesh.vertices = (Vertex *)malloc(vertices.size() * sizeof(Vertex));
     mesh.faces = (TriangleFace *)malloc(faces.size() * sizeof(TriangleFace));
@@ -112,9 +114,14 @@ void MeshRendering::Program::cleanup() {
     mesh.faces = nullptr;  // Set the pointer to nullptr after freeing
 }
 
-void MeshRendering::Program::run(ColorBuffer *color_buffer, int delta) {
-    mesh.rotation.y = (float)delta / 120;
-    render_mesh_wireframe(color_buffer, &mesh, mode);
+void MeshRendering::Program::run(ColorBuffer *color_buffer) {
+    float delta = GetFrameTime();
+
+    mesh.rotation.y += (float)delta * ROTATION_SPEED;
+    mesh.rotation.y = fmod(mesh.rotation.y, RAD2DEG * 361);
+
+    printf("%f\n", mesh.rotation.y);
+    render_mesh_wireframe(color_buffer, &mesh, mode, 0xFFFFFFFF);
 }
 
 } // namespace tinyrenderer::MeshRendering

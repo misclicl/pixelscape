@@ -4,9 +4,7 @@
 #include "raylib.h"
 #include "raymath.h"
 
-#include "../color_buffer.h"
-#include "../display.h"
-
+#include "../core/display.h"
 
 namespace tinyrenderer {
 

@@ -1,9 +1,9 @@
-#ifndef __RENDERING_CUBE__
-#define __RENDERING_CUBE__
+#ifndef __RENDERING_MESH__
+#define __RENDERING_MESH__
 
 #include <stdint.h>
 
-#include "../color_buffer.h"
+#include "../core/color_buffer.h"
 #include "../mesh.h"
 
 namespace tinyrenderer::MeshRendering {
@@ -14,11 +14,12 @@ enum Mode {
 
 struct Program {
     void init();
-    void run(ColorBuffer *color_buffer, int delta);
+    void run(ColorBuffer *color_buffer);
     void cleanup();
 
     Mesh mesh;
     Mode mode;
+    bool backface_culling = true;
 };
 } // namespace tinyrenderer::program
 #endif

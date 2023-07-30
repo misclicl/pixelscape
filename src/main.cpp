@@ -7,17 +7,19 @@
 #include "examples/draw_rectangles.h"
 #include "examples/projection.h"
 #include "examples/mesh_rendering.h"
-
 #include "examples/linear_transformations.h"
 
 #include "mesh.h"
 #include "raylib.h"
 #include "raymath.h"
 
-#include "color_buffer.h"
-#include "display.h"
+#include "core/color_buffer.h"
+#include "core/display.h"
 #include "model.h"
-// #include "loader_obj.h"
+
+#define static local_persist;
+#define static global_variable;
+#define static internal;
 
 const int window_width = 512;
 const int window_height = 512;
@@ -109,10 +111,8 @@ void render_with_shading(
 int main(int argc, char **argv) {
     InitWindow(window_width, window_height, "tinyrenderer");
     SetTargetFPS(60);
-    int frame_counter = 0;
 
     tinyrenderer::Model *model = new tinyrenderer::Model("assets/head.obj");
-    // tinyrenderer::Model *model = new tinyrenderer::Model("assets/cube.obj");
 
     // Image diffuse_img = LoadImage("assets/diffuse.png");
     Image diffuse_img = LoadImage("assets/grid.png");
@@ -124,12 +124,8 @@ int main(int argc, char **argv) {
     tinyrenderer::program::BackgroundGrid bg_grid;
     tinyrenderer::program::DrawRectangles draw_rectangles;
     tinyrenderer::program::Projection projection;
-    tinyrenderer::MeshRendering::Program cube_rendering;
-    cube_rendering.init();
-
-    // std::vector<tinyrenderer::Vec3f> vs;
-    // std::vector<tinyrenderer::TriangleFace> fs;
-    // load_mesh(&vs, &fs);
+    tinyrenderer::MeshRendering::Program mesh_rendering;
+    mesh_rendering.init();
 
     tinyrenderer::ColorBuffer color_buffer;
     color_buffer.width = target_render_size_x;
@@ -152,8 +148,7 @@ int main(int argc, char **argv) {
         // render_with_shading(&color_buffer, frame_counter, model, light_dir, diffuse_img);
         // tinyrenderer::draw_axis(&color_buffer);
         // tinyrenderer::linear_transformations(&color_buffer);
-        // FIXME: rename delta, or change it to actual delta
-        cube_rendering.run(&color_buffer, frame_counter);
+        mesh_rendering.run(&color_buffer);
 
         color_buffer.draw_to_texture();
 
@@ -170,13 +165,13 @@ int main(int argc, char **argv) {
             0,
             WHITE);
 
-        frame_counter++;
         EndDrawing();
     }
 
     UnloadRenderTexture(render_texture);
     UnloadImage(diffuse_img);
     CloseWindow();
+    mesh_rendering.cleanup();
 
     delete model;
     free(color_buffer.pixels);

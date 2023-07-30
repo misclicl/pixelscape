@@ -13,7 +13,7 @@
 #include "tiny_obj_loader.h"
 
 #include "mesh.h"
-#include "tiny_math.h"
+#include "core/tiny_math.h"
 
 namespace tinyrenderer {
 

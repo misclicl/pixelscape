@@ -5,12 +5,18 @@ set(CMAKE_CXX_STANDARD 20) # enable C++20 standard
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 set(CMAKE_BUILD_TYPE Debug)
 
+# Release flags
+# set(CMAKE_CXX_FLAGS "-Wall -Wextra")
+# set(CMAKE_CXX_FLAGS_DEBUG "-g")
+# set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+
 project(tiny-renderer VERSION 0.0.1)
 
 # Define MY_SOURCES to be a list of all the source files for my game 
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS 
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/examples/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/core/*.cpp"
 )
 
 set(BUILD_STATIC_LIBS ON  CACHE INTERNAL "" FORCE)

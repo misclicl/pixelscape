@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "../display.h"
+#include "../core/display.h"
 #include "draw_rectangles.h"
 
 void tinyrenderer::program::DrawRectangles::run(
