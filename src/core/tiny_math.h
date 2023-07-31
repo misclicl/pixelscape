@@ -40,7 +40,7 @@ struct Vec3 {
 
     Vec3<T> operator+(Vec3<T> &v) { return Vec3<T>(x + v.x, y + v.y, z + v.z); }
     Vec3<T> operator-(Vec3<T> &v) { return Vec3<T>(x - v.x, y - v.y, z - v.z); }
-    Vec3<T> operator*(T &r) { return Vec3<T>(x * r, y * r, z * r); }
+    Vec3<T> operator*(T r) { return Vec3<T>(x * r, y * r, z * r); }
     bool operator==(Vec3<T> &v) { return x == v.x && y == v.y && z == v.y; }
 
     // counter-clockwise when looking from positive to negative
@@ -48,6 +48,7 @@ struct Vec3 {
     static Vec3<T> rotate_x(Vec3<T> *v, float angle);
     static Vec3<T> rotate_z(Vec3<T> *v, float angle);
     static Vec3<T> cross(Vec3<T> &a, Vec3<T> &b);
+    static T dot(Vec3<T> &a, Vec3<T> &b);
 };
 
 typedef Vec3<float> Vec3f;

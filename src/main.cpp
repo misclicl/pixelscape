@@ -18,9 +18,9 @@
 #include "core/display.h"
 #include "model.h"
 
-#define static local_persist;
-#define static global_variable;
-#define static internal;
+#define local_persist static;
+#define global_variable static;
+#define internal static;
 
 const int window_width = 512;
 const int window_height = 512;

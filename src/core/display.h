@@ -12,6 +12,7 @@
 
 namespace tinyrenderer {
 void draw_line(ColorBuffer *color_buffer, Vector3 p0, Vector3 p1, uint32_t color);
+void draw_line(ColorBuffer *color_buffer, Vec3f *p0, Vec3f *p1, uint32_t color);
 
 void draw_rectangle(
     ColorBuffer *color_buffer,
