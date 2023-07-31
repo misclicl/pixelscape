@@ -37,7 +37,6 @@ struct Vec3 {
     T dot(Vec3<T> &v);
 
     Vec3<T> &normalize();
-    Vec3<T> cross(Vec3<T> &v);
 
     Vec3<T> operator+(Vec3<T> &v) { return Vec3<T>(x + v.x, y + v.y, z + v.z); }
     Vec3<T> operator-(Vec3<T> &v) { return Vec3<T>(x - v.x, y - v.y, z - v.z); }
@@ -48,6 +47,7 @@ struct Vec3 {
     static Vec3<T> rotate_y(Vec3<T> *v, float angle);
     static Vec3<T> rotate_x(Vec3<T> *v, float angle);
     static Vec3<T> rotate_z(Vec3<T> *v, float angle);
+    static Vec3<T> cross(Vec3<T> &a, Vec3<T> &b);
 };
 
 typedef Vec3<float> Vec3f;

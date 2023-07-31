@@ -28,8 +28,8 @@ Vec3<T> &Vec3<T>::normalize() {
 }
 
 template <typename T>
-Vec3<T> Vec3<T>::cross(Vec3<T> &v) {
-    return Vec3<T>(y * v.z - z * v.y, z * v.x - x * v.z, x * v.y - y * v.x);
+Vec3<T> Vec3<T>::cross(Vec3<T> &a, Vec3<T> &b) {
+    return Vec3<T>(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
 }
 
 template <typename T>

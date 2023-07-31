@@ -1,16 +1,23 @@
-#ifndef __RENDERING_MESH__
-#define __RENDERING_MESH__
+#ifndef __RENDERING_WITH_SHADING__
+#define __RENDERING_WITH_SHADING__
 
+#include "raylib.h"
 #include <stdint.h>
 
-#include "../color_buffer.h"
-#include "../mesh.h"
+#include "../core/color_buffer.h"
+#include "../model.h"
 
-namespace tinyrenderer::ShadedRendering {
+namespace tinyrenderer::RenderWithShading {
 struct Program {
     void init();
-    void run(ColorBuffer *color_buffer, Mesh *mesh);
+    void run(
+        ColorBuffer *color_buffer, 
+        Model *model,
+        Vector3 &light_dir,
+        Image diffuse_texture
+    );
     void cleanup();
 };
-} // namespace tinyrenderer::program
+} // namespace tinyrenderer::RenderWithShading
 #endif
+
