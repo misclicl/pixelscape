@@ -1,6 +1,7 @@
 #ifndef __MESH_PARSER__
 #define __MESH_PARSER__
 
+#include "raylib.h"
 #include <fstream>
 #include <sstream>
 #include <string>
@@ -22,7 +23,7 @@ namespace tinyrenderer {
 static void load_mesh(
     char* file_path,
     std::vector<Vec3f> *vertices, 
-    std::vector<TriangleFace> *faces
+    std::vector<TinyFace> *faces
 ) {
     std::ifstream in(file_path);
     char trash;
@@ -52,17 +53,12 @@ static void load_mesh(
 
             ss >> trash;
 
-            // while (ss >> temp)
             while (ss >> idx >> trash >> idx_uv >> trash >> idx_normal) {
                 idx--;
                 indices.push_back(idx);
             }
-            // while (ss >> idx >> trash >> trash >> idx_normal) {  // Update this line
-            //     idx--;
-            //     indices.push_back(idx);
-            // }
 
-            TriangleFace face {
+            TinyFace face {
                 indices.at(0),
                 indices.at(1),
                 indices.at(2),
@@ -82,7 +78,7 @@ static void load_mesh(
 static void parse_mesh(
     char *filepath, 
     std::vector<Vec3f> *vertices,
-    std::vector<TriangleFace> *faces
+    std::vector<TinyFace> *faces
 ) {
     tinyobj::attrib_t attrib;
     std::vector<tinyobj::shape_t> shapes;
@@ -94,12 +90,11 @@ static void parse_mesh(
     }
 
     std::unordered_map<std::string, int> unique_vertices;
-
-    // std::vector<Vec3f> vertex_buffer = {};
     std::vector<uint32_t> index_buffer = {};
 
     for (size_t i = 0; i < shapes.size(); i++) {
         tinyobj::shape_t *shape = &shapes[i];
+
         for (size_t j = 0; j < shape->mesh.indices.size(); j++) {
             auto& face = shape->mesh.indices[j]; // stores info from 'f a/b/c ...'
 
@@ -113,7 +108,6 @@ static void parse_mesh(
 
             if (unique_vertices.count(key) == 0) {
                 unique_vertices[key] = static_cast<uint32_t>(vertices->size());
-                // vertex_buffer.push_back(vertex);
                 vertices->push_back(vertex);
             }
 
@@ -122,12 +116,20 @@ static void parse_mesh(
     }
 
     for (size_t i = 2; i < index_buffer.size(); i += 3) {
-        TriangleFace face = {};
+        TinyFace face = {};
 
-        face.a = index_buffer[i - 2];
-        face.b = index_buffer[i - 1];
-        face.c = index_buffer[i];
-    
+        Color random_color = {
+            (unsigned char)(255 * random()),
+            (unsigned char)(255 * random()),
+            (unsigned char)(255 * random()),
+            255};
+
+        face.color = ColorToInt(random_color);
+
+        for (int j = 0; j < 3; ++j) {
+            face.indices[j] = index_buffer[i - 2 + j];
+        }
+
         faces->push_back(face);
     }
 }

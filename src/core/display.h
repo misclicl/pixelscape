@@ -11,7 +11,6 @@
 #include "tiny_math.h"
 
 namespace tinyrenderer {
-void draw_line(ColorBuffer *color_buffer, Vector3 p0, Vector3 p1, uint32_t color);
 void draw_line(ColorBuffer *color_buffer, Vec3f *p0, Vec3f *p1, uint32_t color);
 
 void draw_rectangle(
@@ -23,15 +22,9 @@ void draw_rectangle(
 
 void draw_triangle_wireframe(
     ColorBuffer *color_buffer,
-    Vector3 p0,
-    Vector3 p1,
-    Vector3 p2,
-    uint32_t color);
-
-void draw_triangle_wireframe(
-    ColorBuffer *color_buffer,
     Vec3f *vertices,
-    TinyColor color);
+    TinyColor color
+);
 
 void draw_triangle(
     ColorBuffer *color_buffer,
@@ -39,19 +32,16 @@ void draw_triangle(
     const Vector2 (&uv_coords)[3],
     Image &diffuse_texture,
     const float intencity,
-    float *zbuffer);
+    float *zbuffer
+);
 
 void draw_triangle(
     ColorBuffer *color_buffer,
-    const Vec3f *vertices,
-    float *zbuffer);
+    Vec3f *vertices,
+    TinyColor face_color
+    // float *zbuffer
+);
 
 void draw_axis(ColorBuffer *color_buffer);
-
-void draw_triangles(
-    ColorBuffer *color_buffer,
-    std::vector<Vector3> &vertices,
-    std::vector<std::array<int, 3>> &t_indices,
-    uint32_t color);
 } // namespace tinyrenderer
 #endif

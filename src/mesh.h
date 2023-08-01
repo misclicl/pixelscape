@@ -1,6 +1,7 @@
 #ifndef __MESH_H__
 #define __MESH_H__
 
+#include "core/tiny_color.h"
 #include "core/tiny_math.h"
 #include <vector>
 
@@ -9,14 +10,14 @@
 
 namespace tinyrenderer {
 
-struct TriangleFace {
-    int a;
-    int b;
-    int c;
+struct TinyFace {
+    int indices[3] = {};
+    TinyColor color;
+    float avg_depth = 0;
 };
 
 extern Vec3f cube_vertices[CUBE_VERTICES_COUNT];
-extern TriangleFace cube_faces[CUBE_FACES_COUNT];
+extern TinyFace cube_faces[CUBE_FACES_COUNT];
 
 struct Vertex {
     Vec3f *position = {};
@@ -30,7 +31,7 @@ struct Vertex {
 
 struct Mesh {
     Vertex *vertices;
-    TriangleFace *faces;
+    TinyFace *faces;
 
     int face_count = 0;
     int vertex_count = 0;

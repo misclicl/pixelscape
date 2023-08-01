@@ -30,7 +30,7 @@ Vec3f cube_vertices[CUBE_VERTICES_COUNT] = {
     { 1,  1,  1}, // 7
 };
 
-TriangleFace cube_faces[CUBE_FACES_COUNT] = {
+TinyFace cube_faces[CUBE_FACES_COUNT] = {
     // Using OpenGL order
     // top
     {0, 1, 2},

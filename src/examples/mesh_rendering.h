@@ -9,18 +9,35 @@
 
 namespace tinyrenderer::MeshRendering {
 enum RenderingFlags {
-    BACKFACE_CULLING = 0,
-    DISPLAY_NORMALS = 1,
-    DISPLAY_VERTICES = 2,
+    BACKFACE_CULLING,
+    VERTEX_ORDERING,
+    DISPLAY_NORMALS,
+    DISPLAY_VERTICES,
+    DISPLAY_TRIANGLES,
+    DISPLAY_WIREFRAME,
+};
+
+struct FaceBufferItem {
+    Vec3f vertices[3];
+    TinyColor color;
+    float avg_depth;
 };
     
 struct Program {
     void init();
     void run(ColorBuffer *color_buffer);
     void cleanup();
+    void project_mesh(
+        ColorBuffer *color_buffer
+    );
+    void render_mesh(ColorBuffer *color_buffer);
+
+    void handle_input();
 
     Mesh mesh;
     std::bitset<24> render_flags;
+
+    std::vector<FaceBufferItem> faces_to_render;
 };
 } // namespace tinyrenderer::MeshRendering
 #endif

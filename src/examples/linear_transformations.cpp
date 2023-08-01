@@ -26,12 +26,12 @@ void linear_transformations(ColorBuffer *color_buffer) {
     for (const Vector3 &vertex : vertx) {
         v_out.push_back(vertex);
     }
-    draw_triangles(
-        color_buffer,
-        v_out, 
-        indices,
-        0xFFFFFFFF
-    );
+    // draw_triangles(
+    //     color_buffer,
+    //     v_out, 
+    //     indices,
+    //     0xFFFFFFFF
+    // );
 
     // .707 = cos(45deg) = sin(45deg)
     Matrix m = {
@@ -45,24 +45,24 @@ void linear_transformations(ColorBuffer *color_buffer) {
     for (const Vector3 &vertex : vertx) {
         v_out.push_back(Vector3Transform(vertex, m));
     }
-    tinyrenderer::draw_triangles(
-        color_buffer,
-        v_out, 
-        indices,
-        0xFF0000FF
-    );
+    // tinyrenderer::draw_triangles(
+    //     color_buffer,
+    //     v_out, 
+    //     indices,
+    //     0xFF0000FF
+    // );
 
     m.m1 = .707;
     v_out.clear();
     for (const Vector3 &vertex : vertx) {
         v_out.push_back(Vector3Transform(vertex, m));
     }
-    tinyrenderer::draw_triangles(
-        color_buffer,
-        v_out, 
-        indices,
-        0x00FF00FF
-    );
+    // tinyrenderer::draw_triangles(
+    //     color_buffer,
+    //     v_out, 
+    //     indices,
+    //     0x00FF00FF
+    // );
 
     m.m0 = .707;
     m.m5 = .707;
@@ -70,12 +70,12 @@ void linear_transformations(ColorBuffer *color_buffer) {
     for (const Vector3 &vertex : vertx) {
         v_out.push_back(Vector3Transform(vertex, m));
     }
-    tinyrenderer::draw_triangles(
-        color_buffer,
-        v_out,
-        indices,
-        0x0000FFFF
-    );
+    // tinyrenderer::draw_triangles(
+    //     color_buffer,
+    //     v_out,
+    //     indices,
+    //     0x0000FFFF
+    // );
 }
 }
 
