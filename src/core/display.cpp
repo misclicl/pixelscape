@@ -10,15 +10,16 @@
 #include "tiny_math.h"
 
 namespace tinyrenderer {
+
 void draw_line(
     ColorBuffer *color_buffer,
-    Vec3f *p0,
-    Vec3f *p1,
+    Vec3f p0,
+    Vec3f p1,
     TinyColor color) {
-    int x0 = p0->x;
-    int y0 = p0->y;
-    int x1 = p1->x;
-    int y1 = p1->y;
+    int x0 = p0.x;
+    int y0 = p0.y;
+    int x1 = p1.x;
+    int y1 = p1.y;
 
     bool isSteep = false;
 
@@ -62,9 +63,9 @@ void draw_triangle_wireframe(
     ColorBuffer *color_buffer,
     Vec3f *vertices,
     TinyColor color) {
-    draw_line(color_buffer, &vertices[0], &vertices[1], color);
-    draw_line(color_buffer, &vertices[1], &vertices[2], color);
-    draw_line(color_buffer, &vertices[2], &vertices[0], color);
+    draw_line(color_buffer, vertices[0], vertices[1], color);
+    draw_line(color_buffer, vertices[1], vertices[2], color);
+    draw_line(color_buffer, vertices[2], vertices[0], color);
 }
 
 // TODO: hold dimensions in an instance
@@ -227,14 +228,13 @@ void draw_rectangle(
 }
 
 void draw_axis(ColorBuffer *color_buffer) {
-    const int unit = 64;
+    const int unit = 32;
     float half_height = (float)color_buffer->width / 2;
     float half_width = (float)color_buffer->height / 2;
     float axis_length = unit;
-    Vector3 origin = {half_width, half_height, 1};
+    Vec3f origin = {half_width, half_height, 1};
 
-    // FIXME: mirgate to Vec3f
-    // draw_line(color_buffer, origin, {half_width, half_height + axis_length, 1}, 0x00FF00FF);
-    // draw_line(color_buffer, origin, {half_width + axis_length, half_height, 1}, 0xFF0000FF);
+    draw_line(color_buffer, origin, {half_width, half_height + axis_length, 1}, 0x00FF00FF);
+    draw_line(color_buffer, origin, {half_width + axis_length, half_height, 1}, 0xFF0000FF);
 }
 } // namespace tinyrenderer

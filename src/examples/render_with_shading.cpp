@@ -59,7 +59,7 @@ void Program::run(
 
             vertices[j].x = (world_coords[j].x + 1.) * (half_width);
             vertices[j].y = (world_coords[j].y + 1.) * (half_height);
-            vertices[j].z = world_coords[j].z;
+            vertices[j].z = world_coords[j].z; 
         }
 
         Vector3 triangle_normal = Vector3Normalize(

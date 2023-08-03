@@ -1,6 +1,5 @@
 #include "tiny_math.h"
 
-namespace tinyrenderer {
 // SECTION: Vector3
 template <typename T> Vec3<T>::Vec3() : x(T(0)), y(T(0)), z(T(0)) {}
 
@@ -94,5 +93,21 @@ Vec2<T> &Vec2<T>::normalize() {
 
 template struct Vec2<float>;
 
-} // namespace tinyrenderer
+// SECTION: Vec4
+Vec4f vec4_from_vec3(Vec3f v) {
+    return {
+        .x = v.x,
+        .y = v.y,
+        .z = v.z,
+        .w = 1
+    };
+};
 
+Vec3f vec3_from_vec4(Vec4f v) {
+    return {
+        v.x,
+        v.y,
+        v.z
+    };
+};
+// SECTION_END

@@ -1,4 +1,5 @@
 #include <bitset>
+#include <cmath>
 #include <iostream>
 #include <stdlib.h>
 #include <vector>
@@ -8,6 +9,7 @@
 #include "../core/display.h"
 #include "../core/tiny_color.h"
 #include "../core/tiny_math.h"
+#include "../core/matrix.h"
 #include "../loader_obj.h"
 #include "../mesh.h"
 
@@ -18,23 +20,30 @@
 namespace tinyrenderer::MeshRendering {
 
 static Vec3f camera_position = {0, 0, 0};
+static float fov_factor = 140;
 
-static void test() {
-        
-    // Vec3f normal_scaled = triangle_normal * .1;
-    // Vec3f normal_vec_start = a;
-    // Vec3f normal_vec_end = a + normal_scaled;
+static void draw_triangle_normal(
+    ColorBuffer *color_buffer, 
+    Vec3f *vertices, 
+    Vec3f *normal_vec) {
 
-    // Vec3f normal_end_projected = {
-    //     (fov_factor * normal_vec_end.x / normal_vec_end.z) + half_height,
-    //     (fov_factor * normal_vec_end.y / normal_vec_end.z) + half_height,
-    //     normal_vec_end.z};
-    // Vec3f normal_start_projected = {
-    //     (fov_factor * normal_vec_start.x / normal_vec_start.z) + half_height,
-    //     (fov_factor * normal_vec_start.y / normal_vec_start.z) + half_height,
-    //     normal_vec_start.z,
-    // };
+    Vec3f normal_scaled = *normal_vec * .1;
+    Vec3f normal_vec_start = vertices[0];
+    Vec3f normal_vec_end = vertices[0] + normal_scaled;
 
+    int half_width = color_buffer->width / 2;
+    int half_height = color_buffer->height / 2;
+
+    Vec3f normal_end_projected = {
+        (fov_factor * normal_vec_end.x / normal_vec_end.z) + half_height,
+        (fov_factor * normal_vec_end.y / normal_vec_end.z) + half_height,
+        normal_vec_end.z};
+
+    Vec3f normal_start_projected = {
+        (fov_factor * normal_vec_start.x / normal_vec_start.z) + half_height,
+        (fov_factor * normal_vec_start.y / normal_vec_start.z) + half_height,
+        normal_vec_start.z,
+    };
 }
 
 static Vec3f get_triangle_normal(Vec3f *vertices) {
@@ -62,25 +71,19 @@ static void render_triangle(
         //     255};
 
         if (render_flags[DISPLAY_TRIANGLES]) {
-
             draw_triangle(color_buffer, vertices, face_color);
         }
 
         if (render_flags[DISPLAY_WIREFRAME]) {
-            draw_triangle_wireframe(color_buffer, vertices, 0xAFAFAFFF);
+            draw_triangle_wireframe(color_buffer, vertices, 0xAFAFAFAF);
         }
 
         if (render_flags[DISPLAY_VERTICES]) {
-            color_buffer->set_pixel(vertices[0].x, vertices[0].y, 0x00FF00FF);
-            color_buffer->set_pixel(vertices[1].x, vertices[1].y, 0x00FF00FF);
-            color_buffer->set_pixel(vertices[2].x, vertices[2].y, 0x00FF00FF);
+            color_buffer->set_pixel(vertices[0].x, vertices[0].y, 0xF57716FF);
+            color_buffer->set_pixel(vertices[1].x, vertices[1].y, 0xF57716FF);
+            color_buffer->set_pixel(vertices[2].x, vertices[2].y, 0xF57716FF);
         }
-        // if (render_flags[DISPLAY_NORMALS]) {
-        //   draw_line(color_buffer, 
-        //             &normal_start_projected,
-        //             &normal_end_projected, 
-        //             ColorToInt(normal_color));
-        // }
+
 }
 
 void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
@@ -94,7 +97,6 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
 
         Call for rendering in a separate loop.
      */
-    float fov_factor = 140;
 
     int depth_buffer_size = color_buffer->height * color_buffer->width;
     float depth_buffer[depth_buffer_size];
@@ -104,13 +106,23 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
     int half_height = color_buffer->height / 2;
 
 
-    Vec3f *v_view = (Vec3f *)malloc(sizeof(Vec3f) * 3);
-    Vec3f *v_camera = (Vec3f *)malloc(sizeof(Vec3f) * 3);
     Vec3f **face_vertices = (Vec3f **)malloc(sizeof(Vec3f *) * 3);
+
+    Vec3f v_view[3];
+    Vec3f v_camera[3];
+
+    Matrix4 mat_scale = mat4_get_scale(
+        mesh.scale.x,
+        mesh.scale.y,
+        mesh.scale.z
+    );
+
+    Matrix4 mat_translate = mat4_get_translation(mesh.translation.x,
+                                                 mesh.translation.y,
+                                                 mesh.translation.z);
     
     for (int i = 0; i < mesh.face_count; i++) {
         TinyFace *face = &(mesh.faces[i]);
-
 
         face_vertices[0] = mesh.vertices[face->indices[0]].position;
         face_vertices[1] = mesh.vertices[face->indices[1]].position;
@@ -120,15 +132,25 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
             Vec3f vertex = *face_vertices[j];
 
             Vec3f v_model;
-            v_model = Vec3f::rotate_x(&vertex, DEG2RAD * 180);
-            v_model = Vec3f::rotate_y(&v_model, mesh.rotation.y);
-            v_model = v_model * 1.5f;
 
-            v_view[j] = {v_model.x, v_model.y, v_model.z - 3};
+            auto scaled = mat4_multiply_vec4(&mat_scale, vec4_from_vec3(vertex));
+            v_model = { scaled.x, scaled.y, scaled.z };
+            v_model = Vec3f::rotate_x(&v_model, DEG2RAD * -10);
+            v_model = Vec3f::rotate_y(&v_model, mesh.rotation.y);
+            auto translated = mat4_multiply_vec4(&mat_translate, vec4_from_vec3(v_model));
+
+
+            v_view[j] = {translated.x, translated.y, translated.z - 3};
         }
 
+        Vec3f triangle_normal = get_triangle_normal(v_view);
+        Color normal_color = {
+            (unsigned char)(255 * (triangle_normal.x + 1) / 2),
+            (unsigned char)(255 * (triangle_normal.y + 1) / 2),
+            (unsigned char)(255 * (triangle_normal.z + 1) / 2),
+            255};
+
         if (render_flags[BACKFACE_CULLING]) {
-            Vec3f triangle_normal = get_triangle_normal(v_view);
             Vec3f camera_ray = camera_position - v_view[0];
             float dot_normal_cam = Vec3f::dot(camera_ray, triangle_normal);
 
@@ -161,8 +183,10 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
                 { v_camera[1].x, v_camera[1].y, v_camera[1].z },
                 { v_camera[2].x, v_camera[2].y, v_camera[2].z },
             },
+            .normal_vec = triangle_normal, 
             .avg_depth = avg_depth,
-            .color = face->color,
+            // .color = face->color,
+            .color = (TinyColor)ColorToInt(normal_color)
         };
 
         faces_to_render.push_back(f);
@@ -177,23 +201,28 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
         });
     }
 
-    free(v_view);
-    free(v_camera);
     free(face_vertices);
 }
 
 void MeshRendering::Program::render_mesh(ColorBuffer *color_buffer) {
     for (FaceBufferItem face : faces_to_render) {
         render_triangle(color_buffer, face.vertices, render_flags, face.color);
+
+        // FIXME: Rendering for normals doesn't work
+        // The reason for that is that I use projected vertices
+        // if (render_flags[DISPLAY_NORMALS]) {
+        //     draw_triangle_normal(color_buffer, face.vertices, &face.normal_vec);
+        // }
     }
 }
 
 void MeshRendering::Program::init() {
     char *bunny_obj_path = (char *)"assets/bunny-lr.obj";
     char *cube_obj_path = (char *)"assets/cube.obj";
-    char *head_obj_path = (char *)"assets/head.obj";
+    // char *head_obj_path = (char *)"assets/head.obj";
+    // char *head_obj_path = (char *)"assets/headscan.obj";
+    char *head_obj_path = (char *)"assets/head-mod.obj";
 
-    // render_flags.set(DISPLAY_VERTICES, 1);
     render_flags.set(DISPLAY_TRIANGLES, 1);
     render_flags.set(BACKFACE_CULLING, 1);
     render_flags.set(VERTEX_ORDERING, 1);
@@ -215,19 +244,20 @@ void MeshRendering::Program::init() {
         mesh.faces[i] = faces[i];
     }
 
-
     mesh.face_count = faces.size();
     mesh.vertex_count = vertices.size();
+    mesh.scale = { 1.5f, 1.5f, 1.5f };
 }
 
 void MeshRendering::Program::run(ColorBuffer *color_buffer) {
     handle_input();
 
     float delta = GetFrameTime();
+    float elapsed = GetTime();
 
     mesh.rotation.y += (float)delta * ROTATION_SPEED;
     mesh.rotation.y = fmod(mesh.rotation.y, DEG2RAD * 360);
-
+    // mesh.translation.x = sinf(elapsed);
 
     project_mesh(color_buffer);
     render_mesh(color_buffer);
@@ -276,3 +306,4 @@ void MeshRendering::Program::cleanup() {
 }
 
 } // namespace tinyrenderer::MeshRendering
+

@@ -35,7 +35,10 @@ struct Mesh {
 
     int face_count = 0;
     int vertex_count = 0;
+
     Vec3f rotation = {};
+    Vec3f translation = {};
+    Vec3f scale = {1, 1, 1};
 };
 
 } // namespace tinyrenderer

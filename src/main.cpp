@@ -10,6 +10,7 @@
 #include "examples/linear_transformations.h"
 
 #include "examples/render_with_shading.h"
+
 #include "mesh.h"
 #include "raylib.h"
 #include "raymath.h"
@@ -69,11 +70,11 @@ int main(int argc, char **argv) {
         // bg_grid.run(&color_buffer);
         // draw_rectangles.run(&color_buffer);
         // projection.run(&color_buffer, frame_counter);
-        // tinyrenderer::draw_axis(&color_buffer);
         // tinyrenderer::linear_transformations(&color_buffer);
 
         // render_with_shading.run(&color_buffer, model, light_dir, diffuse_img);
         mesh_rendering.run(&color_buffer);
+        tinyrenderer::draw_axis(&color_buffer);
 
         color_buffer.draw_to_texture();
 

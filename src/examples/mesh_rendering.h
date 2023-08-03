@@ -19,6 +19,7 @@ enum RenderingFlags {
 
 struct FaceBufferItem {
     Vec3f vertices[3];
+    Vec3f normal_vec;
     TinyColor color;
     float avg_depth;
 };
