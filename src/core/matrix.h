@@ -23,7 +23,7 @@ Matrix4 mat4_get_rotation(float x, float y, float z);
 
 Matrix4 mat4_add(Matrix4 *a, Matrix4 *b);
 Matrix4 mat4_substract(Matrix4 *a, Matrix4 *b);
-Matrix4 mat4_multiply(Matrix4 *a, Matrix4 *b);
+Matrix4 mat4_multiply(Matrix4 a, Matrix4 b);
 
 Vec4f mat4_multiply_vec4(Matrix4 *mat, Vec4f vec);
 

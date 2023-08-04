@@ -83,7 +83,29 @@ static void render_triangle(
             color_buffer->set_pixel(vertices[1].x, vertices[1].y, 0xF57716FF);
             color_buffer->set_pixel(vertices[2].x, vertices[2].y, 0xF57716FF);
         }
+}
 
+static Matrix4 get_world_matrix(Vec3f scale, Vec3f rotation, Vec3f translation) {
+    Matrix4 m_scale = mat4_get_scale(
+        scale.x,
+        scale.y,
+        scale.z
+    );
+
+    Matrix4 m_translation = mat4_get_translation(
+        translation.x,
+        translation.y,
+        translation.z
+    );
+
+    Matrix4 m_rotation = mat4_get_rotation(
+        rotation.x,
+        rotation.y,
+        rotation.z
+    );
+
+    Matrix4 out = mat4_multiply(m_scale, mat4_multiply(m_rotation, m_translation));
+    return out;
 }
 
 void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
@@ -102,22 +124,10 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
     Vec3f v_view[3];
     Vec3f v_camera[3];
 
-    Matrix4 mat_scale = mat4_get_scale(
-        mesh.scale.x,
-        mesh.scale.y,
-        mesh.scale.z
-    );
-
-    Matrix4 mat_translate = mat4_get_translation(
-        mesh.translation.x,
-        mesh.translation.y,
-        mesh.translation.z
-    );
-
-    Matrix4 mat_rotation = mat4_get_rotation(
-        mesh.rotation.x,
-        mesh.rotation.y,
-        mesh.rotation.z
+    Matrix4 mat_world = get_world_matrix(
+        mesh.scale,
+        mesh.rotation,
+        mesh.translation
     );
     
     for (int i = 0; i < mesh.face_count; i++) {
@@ -130,18 +140,10 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
         for (int j = 0; j < 3; j++) {
             Vec3f vertex = *face_vertices[j];
 
-            Vec3f v_model;
-
-            Vec4f v_scaled = mat4_multiply_vec4(&mat_scale, vec4_from_vec3(vertex));
-
-            Vec4f v_rotated = mat4_multiply_vec4(&mat_rotation, v_scaled);
-
-            // Moving away from the camera
-            Vec4f v_translated = mat4_multiply_vec4(&mat_translate, v_rotated);
+            Vec4f v_world = mat4_multiply_vec4(&mat_world, vec4_from_vec3(vertex));
 
             // FIXME: No need to transform for now as the camera is located in the origin
-            v_view[j] = {v_translated.x, v_translated.y, v_translated.z};
-
+            v_view[j] = {v_world.x, v_world.y, v_world.z};
         }
 
         Vec3f triangle_normal = get_triangle_normal(v_view);
