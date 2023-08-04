@@ -82,6 +82,37 @@ Matrix4 mat4_get_rotation_z(float angle) {
 
     return identity;
 }
+
+Matrix4 mat4_get_rotation(float x, float y, float z) {
+    // | cos(b)cos(g)  sin(a)sin(b)cos(g) - cos(a)sin(g)  cos(a)sin(b)cos(g) + sin(a)sin(y)  0 |
+    // | cos(b)sin(g)  sin(a)sin(b)sin(g) + cos(a)cos(y)  cos(a)sin(b)sin(g) - sin(a)cos(g)  0 |
+    // |      -sin(b)                       sin(a)cos(b)                       cos(a)cos(b)  0 |
+    // |            0                                  0                                  0  1 |
+    float c_alpha = cos(x);
+    float s_alpha = sin(x);
+
+    float c_beta = cos(y);
+    float s_beta = sin(y);
+
+    float c_gamma = cos(z);
+    float s_gamma = sin(z);
+
+    Matrix4 identity = mat4_get_identity();
+    identity.m0 = c_beta * c_gamma;
+    identity.m1 = c_beta * s_gamma;
+    identity.m2 = -s_beta;
+
+    identity.m4 = s_alpha * s_beta * c_gamma - c_alpha * s_gamma;
+    identity.m5 = s_alpha * s_beta * s_gamma + c_alpha * c_gamma;
+    identity.m6 = s_alpha * c_beta;
+
+    identity.m8 = c_alpha * s_beta * c_gamma + s_alpha * s_gamma;
+    identity.m9 = c_alpha * s_beta * s_gamma - s_alpha * c_gamma;
+    identity.m10 = c_alpha * c_beta;
+
+    return identity;
+}
+
 Matrix4 mat4_add(Matrix4 *a, Matrix4 *b) {
     return {
         .m0 = a-> m0 + b -> m0,

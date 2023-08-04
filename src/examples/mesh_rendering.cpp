@@ -114,9 +114,11 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
         mesh.translation.z
     );
 
-    Matrix4 mat_rotation_x = mat4_get_rotation_x(DEG2RAD * -10);
-    Matrix4 mat_rotation_y = mat4_get_rotation_y(mesh.rotation.y);
-    Matrix4 mat_rotation_z = mat4_get_rotation_z(mesh.rotation.z);
+    Matrix4 mat_rotation = mat4_get_rotation(
+        mesh.rotation.x,
+        mesh.rotation.y,
+        mesh.rotation.z
+    );
     
     for (int i = 0; i < mesh.face_count; i++) {
         TinyFace *face = &(mesh.faces[i]);
@@ -132,9 +134,7 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
 
             Vec4f v_scaled = mat4_multiply_vec4(&mat_scale, vec4_from_vec3(vertex));
 
-            Vec4f v_rotated = mat4_multiply_vec4(&mat_rotation_x, v_scaled);
-            v_rotated = mat4_multiply_vec4(&mat_rotation_y, v_rotated);
-            v_rotated = mat4_multiply_vec4(&mat_rotation_z, v_rotated);
+            Vec4f v_rotated = mat4_multiply_vec4(&mat_rotation, v_scaled);
 
             // Moving away from the camera
             Vec4f v_translated = mat4_multiply_vec4(&mat_translate, v_rotated);
@@ -249,6 +249,8 @@ void MeshRendering::Program::init() {
     mesh.vertex_count = vertices.size();
     mesh.scale = { 1.5f, 1.5f, 1.5f };
     mesh.translation = { 0.f, 0.f, -3.f };
+
+    mesh.rotation.x = -DEG2RAD * 10;
 }
 
 void MeshRendering::Program::run(ColorBuffer *color_buffer) {

@@ -19,7 +19,7 @@ Matrix4 mat4_get_translation(float x, float y, float z);
 Matrix4 mat4_get_rotation_x(float angle);
 Matrix4 mat4_get_rotation_y(float angle);
 Matrix4 mat4_get_rotation_z(float angle);
-
+Matrix4 mat4_get_rotation(float x, float y, float z);
 
 Matrix4 mat4_add(Matrix4 *a, Matrix4 *b);
 Matrix4 mat4_substract(Matrix4 *a, Matrix4 *b);
