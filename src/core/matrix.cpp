@@ -20,10 +20,10 @@ Matrix4 mat4_get_scale(float x, float y, float z) {
 }
 
 Matrix4 mat4_get_translation(float x, float y, float z) {
-    // | 1 0 0 x |
-    // | 0 1 0 y |
-    // | 0 0 1 z |
-    // | 0 0 0 1 |
+    // | 1  0  0  x |
+    // | 0  1  0  y |
+    // | 0  0  1  z |
+    // | 0  0  0  1 |
     Matrix4 identity = mat4_get_identity();
     identity.m12 = x;
     identity.m13 = y;
@@ -32,6 +32,56 @@ Matrix4 mat4_get_translation(float x, float y, float z) {
     return identity;
 }
 
+Matrix4 mat4_get_rotation_x(float angle) {
+    // | 1       0        0  0 |
+    // | 0  cos(a)  -sin(a)  0 |
+    // | 0  sin(a)   cos(a)  0 |
+    // | 0       0        0  1 |
+    Matrix4 identity = mat4_get_identity();
+    float c = cos(angle);
+    float s = sin(angle);
+
+    identity.m5  =  c;
+    identity.m6  =  s;
+    identity.m9  = -s;
+    identity.m10 =  c;
+
+    return identity;
+}
+
+Matrix4 mat4_get_rotation_y(float angle) {
+    // |  cos(a)  0   sin(a)  0 |
+    // |       0  1        0  0 |
+    // | -sin(a)  0   cos(a)  0 |
+    // |       0  0        0  1 |
+    Matrix4 identity = mat4_get_identity();
+    float c = cos(angle);
+    float s = sin(angle);
+
+    identity.m0  =  c;
+    identity.m2  = -s;
+    identity.m8  =  s;
+    identity.m10 =  c;
+
+    return identity;
+}
+
+Matrix4 mat4_get_rotation_z(float angle) {
+    // | cos(a)  -sin(a)  0  0 |
+    // | sin(a)   cos(a)  0  0 |
+    // |      0        0  1  0 |
+    // |      0        0  0  1 |
+    Matrix4 identity = mat4_get_identity();
+    float c = cos(angle);
+    float s = sin(angle);
+
+    identity.m0 =   c;
+    identity.m1 =   s;
+    identity.m4 =  -s;
+    identity.m5 =   c;
+
+    return identity;
+}
 Matrix4 mat4_add(Matrix4 *a, Matrix4 *b) {
     return {
         .m0 = a-> m0 + b -> m0,
@@ -76,20 +126,20 @@ Matrix4 mat4_subtract(Matrix4 *a, Matrix4 *b) {
 
 Matrix4 mat4_multiply(Matrix4 *a, Matrix4 *b) {
     return {
-        .m0 = a->m0*b->m0 + a->m1*b->m4 + a->m2*b->m8 + a->m3*b->m12,
-        .m1 = a->m0*b->m1 + a->m1*b->m5 + a->m2*b->m9 + a->m3*b->m13,
-        .m2 = a->m0*b->m2 + a->m1*b->m6 + a->m2*b->m10 + a->m3*b->m14,
-        .m3 = a->m0*b->m3 + a->m1*b->m7 + a->m2*b->m11 + a->m3*b->m15,
-        .m4 = a->m4*b->m0 + a->m5*b->m4 + a->m6*b->m8 + a->m7*b->m12,
-        .m5 = a->m4*b->m1 + a->m5*b->m5 + a->m6*b->m9 + a->m7*b->m13,
-        .m6 = a->m4*b->m2 + a->m5*b->m6 + a->m6*b->m10 + a->m7*b->m14,
-        .m7 = a->m4*b->m3 + a->m5*b->m7 + a->m6*b->m11 + a->m7*b->m15,
-        .m8 = a->m8*b->m0 + a->m9*b->m4 + a->m10*b->m8 + a->m11*b->m12,
-        .m9 = a->m8*b->m1 + a->m9*b->m5 + a->m10*b->m9 + a->m11*b->m13,
-        .m10 = a->m8*b->m2 + a->m9*b->m6 + a->m10*b->m10 + a->m11*b->m14,
-        .m11 = a->m8*b->m3 + a->m9*b->m7 + a->m10*b->m11 + a->m11*b->m15,
-        .m12 = a->m12*b->m0 + a->m13*b->m4 + a->m14*b->m8 + a->m15*b->m12,
-        .m13 = a->m12*b->m1 + a->m13*b->m5 + a->m14*b->m9 + a->m15*b->m13,
+        .m0 =  a->m0*b->m0  + a->m1*b->m4  + a->m2*b->m8   + a->m3*b->m12,
+        .m1 =  a->m0*b->m1  + a->m1*b->m5  + a->m2*b->m9   + a->m3*b->m13,
+        .m2 =  a->m0*b->m2  + a->m1*b->m6  + a->m2*b->m10  + a->m3*b->m14,
+        .m3 =  a->m0*b->m3  + a->m1*b->m7  + a->m2*b->m11  + a->m3*b->m15,
+        .m4 =  a->m4*b->m0  + a->m5*b->m4  + a->m6*b->m8   + a->m7*b->m12,
+        .m5 =  a->m4*b->m1  + a->m5*b->m5  + a->m6*b->m9   + a->m7*b->m13,
+        .m6 =  a->m4*b->m2  + a->m5*b->m6  + a->m6*b->m10  + a->m7*b->m14,
+        .m7 =  a->m4*b->m3  + a->m5*b->m7  + a->m6*b->m11  + a->m7*b->m15,
+        .m8 =  a->m8*b->m0  + a->m9*b->m4  + a->m10*b->m8  + a->m11*b->m12,
+        .m9 =  a->m8*b->m1  + a->m9*b->m5  + a->m10*b->m9  + a->m11*b->m13,
+        .m10 = a->m8*b->m2  + a->m9*b->m6  + a->m10*b->m10 + a->m11*b->m14,
+        .m11 = a->m8*b->m3  + a->m9*b->m7  + a->m10*b->m11 + a->m11*b->m15,
+        .m12 = a->m12*b->m0 + a->m13*b->m4 + a->m14*b->m8  + a->m15*b->m12,
+        .m13 = a->m12*b->m1 + a->m13*b->m5 + a->m14*b->m9  + a->m15*b->m13,
         .m14 = a->m12*b->m2 + a->m13*b->m6 + a->m14*b->m10 + a->m15*b->m14,
         .m15 = a->m12*b->m3 + a->m13*b->m7 + a->m14*b->m11 + a->m15*b->m15,
     };

@@ -15,7 +15,7 @@
 
 #include "mesh_rendering.h"
 
-#define ROTATION_SPEED 1.2;
+#define ROTATION_SPEED 1.2f
 
 namespace tinyrenderer::MeshRendering {
 
@@ -89,15 +89,6 @@ static void render_triangle(
 void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
     faces_to_render.clear();
 
-    /*
-        TODO: refactor:
-        project all vertices and store them in an array.
-        alongside with projected vertices store their
-        depth. that way I could sort them.
-
-        Call for rendering in a separate loop.
-     */
-
     int depth_buffer_size = color_buffer->height * color_buffer->width;
     float depth_buffer[depth_buffer_size];
     std::fill_n(depth_buffer, depth_buffer_size, -10000);
@@ -117,9 +108,15 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
         mesh.scale.z
     );
 
-    Matrix4 mat_translate = mat4_get_translation(mesh.translation.x,
-                                                 mesh.translation.y,
-                                                 mesh.translation.z);
+    Matrix4 mat_translate = mat4_get_translation(
+        mesh.translation.x,
+        mesh.translation.y,
+        mesh.translation.z
+    );
+
+    Matrix4 mat_rotation_x = mat4_get_rotation_x(DEG2RAD * -10);
+    Matrix4 mat_rotation_y = mat4_get_rotation_y(mesh.rotation.y);
+    Matrix4 mat_rotation_z = mat4_get_rotation_z(mesh.rotation.z);
     
     for (int i = 0; i < mesh.face_count; i++) {
         TinyFace *face = &(mesh.faces[i]);
@@ -133,14 +130,18 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
 
             Vec3f v_model;
 
-            auto scaled = mat4_multiply_vec4(&mat_scale, vec4_from_vec3(vertex));
-            v_model = { scaled.x, scaled.y, scaled.z };
-            v_model = Vec3f::rotate_x(&v_model, DEG2RAD * -10);
-            v_model = Vec3f::rotate_y(&v_model, mesh.rotation.y);
-            auto translated = mat4_multiply_vec4(&mat_translate, vec4_from_vec3(v_model));
+            Vec4f v_scaled = mat4_multiply_vec4(&mat_scale, vec4_from_vec3(vertex));
 
+            Vec4f v_rotated = mat4_multiply_vec4(&mat_rotation_x, v_scaled);
+            v_rotated = mat4_multiply_vec4(&mat_rotation_y, v_rotated);
+            v_rotated = mat4_multiply_vec4(&mat_rotation_z, v_rotated);
 
-            v_view[j] = {translated.x, translated.y, translated.z - 3};
+            // Moving away from the camera
+            Vec4f v_translated = mat4_multiply_vec4(&mat_translate, v_rotated);
+
+            // FIXME: No need to transform for now as the camera is located in the origin
+            v_view[j] = {v_translated.x, v_translated.y, v_translated.z};
+
         }
 
         Vec3f triangle_normal = get_triangle_normal(v_view);
@@ -247,6 +248,7 @@ void MeshRendering::Program::init() {
     mesh.face_count = faces.size();
     mesh.vertex_count = vertices.size();
     mesh.scale = { 1.5f, 1.5f, 1.5f };
+    mesh.translation = { 0.f, 0.f, -3.f };
 }
 
 void MeshRendering::Program::run(ColorBuffer *color_buffer) {
@@ -255,9 +257,8 @@ void MeshRendering::Program::run(ColorBuffer *color_buffer) {
     float delta = GetFrameTime();
     float elapsed = GetTime();
 
-    mesh.rotation.y += (float)delta * ROTATION_SPEED;
-    mesh.rotation.y = fmod(mesh.rotation.y, DEG2RAD * 360);
-    // mesh.translation.x = sinf(elapsed);
+    mesh.rotation.y = fmod((elapsed * ROTATION_SPEED), DEG2RAD * 360);
+    // mesh.rotation.z = fmod((elapsed * ROTATION_SPEED), DEG2RAD * 360);
 
     project_mesh(color_buffer);
     render_mesh(color_buffer);
