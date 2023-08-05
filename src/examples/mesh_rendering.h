@@ -6,6 +6,7 @@
 
 #include "../core/color_buffer.h"
 #include "../mesh.h"
+#include "../light.h"
 
 namespace tinyrenderer::MeshRendering {
 enum RenderingFlags {
@@ -15,6 +16,9 @@ enum RenderingFlags {
     DISPLAY_VERTICES,
     DISPLAY_TRIANGLES,
     DISPLAY_WIREFRAME,
+    
+    ENABLE_FACE_NORMALS,
+    ENABLE_SHADING,
 };
 
 struct FaceBufferItem {
@@ -35,6 +39,7 @@ struct Program {
 
     void handle_input();
 
+    Light light;
     Mesh mesh;
     std::bitset<24> render_flags;
 

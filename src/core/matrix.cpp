@@ -114,11 +114,10 @@ Matrix4 mat4_get_rotation(float x, float y, float z) {
 }
 
 Matrix4 mat4_get_projection(float aspect_ratio, float fov, float z_near, float z_far) {
-    // | ar * (1/tan(theta/2))               0       0                 0 |
-    // |                     0  1/tan(theta/2)       0                 0 |
-    // |                     0               0  lambda  -lambda * z_near |
-    // |                     0               0       1                 0 |
-
+    // | ar * (1/tan(theta/2))               0        0                 0 |
+    // |                     0  1/tan(theta/2)        0                 0 |
+    // |                     0               0  -lambda  -lambda * z_near |
+    // |                     0               0       -1                 0 |
     float lambda = z_far / (z_far - z_near);
     float scale = (1 / tan(fov/2));
     Matrix4 out = {};

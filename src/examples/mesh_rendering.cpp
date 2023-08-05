@@ -21,6 +21,7 @@ namespace tinyrenderer::MeshRendering {
 
 static Vec3f camera_position = {0, 0, 0};
 static float camera_fov = 45;
+static TinyColor default_color = 0xafafafff;
 
 // FIXME: I need to project with matrix now
 static void draw_triangle_normal(
@@ -65,6 +66,7 @@ static void render_triangle(
     std::bitset<24> render_flags,
     TinyColor face_color
 ) {
+        int a = 4;
         if (render_flags[DISPLAY_TRIANGLES]) {
             draw_triangle(color_buffer, vertices, face_color);
         }
@@ -159,8 +161,9 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
         Matrix4 projection = mat4_get_projection(1.f, DEG2RAD * camera_fov, -.1f, -100.f);
 
         for (int j = 0; j < 3; j++) {
+            // This gives me image space or NDC
             Vec4f v_projected = mat4_multiply_projection_vec4(projection, vec4_from_vec3(v_view[j]));
-
+        
             v_camera[j] = {
                 (v_projected.x * half_width) + half_width,
                 (v_projected.y * half_height)+ half_height,
@@ -168,12 +171,21 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
             };
         }
 
+        float intencity = render_flags[ENABLE_SHADING] ?
+            1.f - (Vec3f::dot(light.direction.normalize(), triangle_normal) + 1) * .5f :
+            1.f;
 
-        Color normal_color = {
-            (unsigned char)(255 * (triangle_normal.x + 1) / 2),
-            (unsigned char)(255 * (triangle_normal.y + 1) / 2),
-            (unsigned char)(255 * (triangle_normal.z + 1) / 2),
-            255};
+        TinyColor normal_color = tiny_color_from_rgb(
+            (255 * (triangle_normal.x + 1) / 2),
+            (255 * (triangle_normal.y + 1) / 2),
+            (255 * (triangle_normal.z + 1) / 2));
+
+        TinyColor base_color = render_flags[ENABLE_FACE_NORMALS] ?
+            normal_color : default_color;
+
+        base_color = apply_intencity(base_color, intencity);
+
+
         // Write transformed to buffer
         FaceBufferItem f = {
             .vertices = {
@@ -184,7 +196,7 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
             .normal_vec = triangle_normal, 
             .avg_depth = avg_depth,
             // .color = face->color,
-            .color = (TinyColor)ColorToInt(normal_color)
+            .color = base_color
         };
 
         faces_to_render.push_back(f);
@@ -218,12 +230,13 @@ void MeshRendering::Program::init() {
     char *bunny_obj_path = (char *)"assets/bunny-lr.obj";
     char *cube_obj_path = (char *)"assets/cube.obj";
     // char *head_obj_path = (char *)"assets/head.obj";
-    // char *head_obj_path = (char *)"assets/headscan.obj";
-    char *head_obj_path = (char *)"assets/head-mod.obj";
+    char *head_obj_path = (char *)"assets/headscan.obj";
+    // char *head_obj_path = (char *)"assets/head-mod.obj";
 
     render_flags.set(DISPLAY_TRIANGLES, 1);
     render_flags.set(BACKFACE_CULLING, 1);
     render_flags.set(VERTEX_ORDERING, 1);
+    render_flags.set(ENABLE_SHADING, 1);
 
     std::vector<Vec3f> vertices;
     std::vector<TinyFace> faces;
@@ -246,8 +259,9 @@ void MeshRendering::Program::init() {
     mesh.vertex_count = vertices.size();
     mesh.scale = { 1.0f, 1.0f, 1.0f };
     mesh.translation = { 0.f, 0.f, -5.f };
-
     mesh.rotation.x = -DEG2RAD * 10;
+
+    light.direction = { -1.f, .5f, -1.f };
 }
 
 void MeshRendering::Program::run(ColorBuffer *color_buffer) {
@@ -269,8 +283,12 @@ void MeshRendering::Program::handle_input() {
         std::cout << "Backface culling: " << render_flags[BACKFACE_CULLING] << "\n";
     }
     if (IsKeyPressed(KEY_N)) {
-        render_flags.flip(DISPLAY_NORMALS);
-        std::cout << "Display normals: " << render_flags[BACKFACE_CULLING] << "\n";
+        render_flags.flip(ENABLE_FACE_NORMALS);
+        std::cout << "Enable face normals: " << render_flags[ENABLE_FACE_NORMALS] << "\n";
+    }
+    if (IsKeyPressed(KEY_S)) {
+        render_flags.flip(ENABLE_SHADING);
+        std::cout << "Enable shading: " << render_flags[ENABLE_SHADING] << "\n";
     }
     if (IsKeyPressed(KEY_Z)) {
         render_flags.flip(VERTEX_ORDERING);
