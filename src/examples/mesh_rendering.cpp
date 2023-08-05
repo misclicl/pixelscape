@@ -20,30 +20,31 @@
 namespace tinyrenderer::MeshRendering {
 
 static Vec3f camera_position = {0, 0, 0};
-static float fov_factor = 140;
+static float camera_fov = 45;
 
+// FIXME: I need to project with matrix now
 static void draw_triangle_normal(
     ColorBuffer *color_buffer, 
     Vec3f *vertices, 
     Vec3f *normal_vec) {
-
-    Vec3f normal_scaled = *normal_vec * .1;
-    Vec3f normal_vec_start = vertices[0];
-    Vec3f normal_vec_end = vertices[0] + normal_scaled;
-
-    int half_width = color_buffer->width / 2;
-    int half_height = color_buffer->height / 2;
-
-    Vec3f normal_end_projected = {
-        (fov_factor * normal_vec_end.x / normal_vec_end.z) + half_height,
-        (fov_factor * normal_vec_end.y / normal_vec_end.z) + half_height,
-        normal_vec_end.z};
-
-    Vec3f normal_start_projected = {
-        (fov_factor * normal_vec_start.x / normal_vec_start.z) + half_height,
-        (fov_factor * normal_vec_start.y / normal_vec_start.z) + half_height,
-        normal_vec_start.z,
-    };
+    //
+    // Vec3f normal_scaled = *normal_vec * .1;
+    // Vec3f normal_vec_start = vertices[0];
+    // Vec3f normal_vec_end = vertices[0] + normal_scaled;
+    //
+    // int half_width = color_buffer->width / 2;
+    // int half_height = color_buffer->height / 2;
+    //
+    // Vec3f normal_end_projected = {
+    //     (fov_factor * normal_vec_end.x / normal_vec_end.z) + half_height,
+    //     (fov_factor * normal_vec_end.y / normal_vec_end.z) + half_height,
+    //     normal_vec_end.z};
+    //
+    // Vec3f normal_start_projected = {
+    //     (fov_factor * normal_vec_start.x / normal_vec_start.z) + half_height,
+    //     (fov_factor * normal_vec_start.y / normal_vec_start.z) + half_height,
+    //     normal_vec_start.z,
+    // };
 }
 
 static Vec3f get_triangle_normal(Vec3f *vertices) {
@@ -64,12 +65,6 @@ static void render_triangle(
     std::bitset<24> render_flags,
     TinyColor face_color
 ) {
-        // Color normal_color = {
-        //     (unsigned char)(255 * (triangle_normal.x + 1) / 2),
-        //     (unsigned char)(255 * (triangle_normal.y + 1) / 2),
-        //     (unsigned char)(255 * (triangle_normal.z + 1) / 2),
-        //     255};
-
         if (render_flags[DISPLAY_TRIANGLES]) {
             draw_triangle(color_buffer, vertices, face_color);
         }
@@ -147,11 +142,6 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
         }
 
         Vec3f triangle_normal = get_triangle_normal(v_view);
-        Color normal_color = {
-            (unsigned char)(255 * (triangle_normal.x + 1) / 2),
-            (unsigned char)(255 * (triangle_normal.y + 1) / 2),
-            (unsigned char)(255 * (triangle_normal.z + 1) / 2),
-            255};
 
         if (render_flags[BACKFACE_CULLING]) {
             Vec3f camera_ray = camera_position - v_view[0];
@@ -162,23 +152,28 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
             }
         }
 
+        // Calculate face depth
+        float avg_depth = (v_view[0].z + v_view[1].z + v_view[2].z) / 3.f;
+
         // view -> projection step
+        Matrix4 projection = mat4_get_projection(1.f, DEG2RAD * camera_fov, -.1f, -100.f);
+
         for (int j = 0; j < 3; j++) {
-            Vec2f v_projected = {
-                fov_factor * v_view[j].x / v_view[j].z,
-                fov_factor * v_view[j].y / v_view[j].z};
+            Vec4f v_projected = mat4_multiply_projection_vec4(projection, vec4_from_vec3(v_view[j]));
 
             v_camera[j] = {
-                v_projected.x + half_width,
-                v_projected.y + half_height,
-                face_vertices[j]->z,
+                (v_projected.x * half_width) + half_width,
+                (v_projected.y * half_height)+ half_height,
+                v_view[j].z,
             };
         }
 
 
-        // Calculate face depth
-        float avg_depth = (v_view[0].z + v_view[1].z + v_view[2].z) / 3.f;
-
+        Color normal_color = {
+            (unsigned char)(255 * (triangle_normal.x + 1) / 2),
+            (unsigned char)(255 * (triangle_normal.y + 1) / 2),
+            (unsigned char)(255 * (triangle_normal.z + 1) / 2),
+            255};
         // Write transformed to buffer
         FaceBufferItem f = {
             .vertices = {
@@ -249,8 +244,8 @@ void MeshRendering::Program::init() {
 
     mesh.face_count = faces.size();
     mesh.vertex_count = vertices.size();
-    mesh.scale = { 1.5f, 1.5f, 1.5f };
-    mesh.translation = { 0.f, 0.f, -3.f };
+    mesh.scale = { 1.0f, 1.0f, 1.0f };
+    mesh.translation = { 0.f, 0.f, -5.f };
 
     mesh.rotation.x = -DEG2RAD * 10;
 }

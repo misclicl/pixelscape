@@ -113,6 +113,25 @@ Matrix4 mat4_get_rotation(float x, float y, float z) {
     return identity;
 }
 
+Matrix4 mat4_get_projection(float aspect_ratio, float fov, float z_near, float z_far) {
+    // | ar * (1/tan(theta/2))               0       0                 0 |
+    // |                     0  1/tan(theta/2)       0                 0 |
+    // |                     0               0  lambda  -lambda * z_near |
+    // |                     0               0       1                 0 |
+
+    float lambda = z_far / (z_far - z_near);
+    float scale = (1 / tan(fov/2));
+    Matrix4 out = {};
+
+    out.m0 = aspect_ratio * scale;
+    out.m5 = scale;
+    out.m10 = lambda;
+    out.m11 = 1;
+    out.m14 = lambda * z_near;
+
+    return out;
+}
+
 Matrix4 mat4_add(Matrix4 *a, Matrix4 *b) {
     return {
         .m0 = a-> m0 + b -> m0,
@@ -186,3 +205,16 @@ Vec4f mat4_multiply_vec4(Matrix4 *mat, Vec4f v) {
 
     return result;
 };
+
+Vec4f mat4_multiply_projection_vec4(Matrix4 mat, Vec4f vec) {
+    // TODO: remove reference from multiply function
+    Vec4f out = mat4_multiply_vec4(&mat, vec);
+
+    if (out.w != 0.f) {
+        out.x /= out.w;
+        out.y /= out.w;
+        out.z /= out.w;
+    }
+
+    return out;
+}
