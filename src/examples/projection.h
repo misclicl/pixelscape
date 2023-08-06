@@ -4,10 +4,10 @@
 #include "../core/color_buffer.h"
 #include <stdint.h>
 
-namespace tinyrenderer::program {
+namespace pixelscape::program {
 
 struct Projection {
     void run(ColorBuffer *color_buffer, int delta);
 };
-} // namespace tinyrenderer::program
+} // namespace pixelscape::program
 #endif

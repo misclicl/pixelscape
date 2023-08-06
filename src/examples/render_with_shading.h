@@ -7,7 +7,7 @@
 #include "../core/color_buffer.h"
 #include "../model.h"
 
-namespace tinyrenderer::RenderWithShading {
+namespace pixelscape::RenderWithShading {
 struct Program {
     void init();
     void run(
@@ -18,6 +18,6 @@ struct Program {
     );
     void cleanup();
 };
-} // namespace tinyrenderer::RenderWithShading
+} // namespace pixelscape::RenderWithShading
 #endif
 

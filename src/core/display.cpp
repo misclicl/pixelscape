@@ -9,7 +9,7 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
-namespace tinyrenderer {
+namespace pixelscape {
 
 void draw_line(
     ColorBuffer *color_buffer,
@@ -68,8 +68,7 @@ void draw_triangle_wireframe(
     draw_line(color_buffer, vertices[2], vertices[0], color);
 }
 
-// TODO: hold dimensions in an instance
-inline void triangle_bb(const Vector3 *vertices, int *boundaries, int screen_width, int screen_height) {
+static void triangle_bb(Vec3f vertices[3], int boundaries[4], int screen_width, int screen_height) {
     int x_start = floor(std::min(vertices[0].x, std::min(vertices[1].x, vertices[2].x)));
     int x_end = ceil(std::max(vertices[0].x, std::max(vertices[1].x, vertices[2].x)));
 
@@ -82,45 +81,18 @@ inline void triangle_bb(const Vector3 *vertices, int *boundaries, int screen_wid
     boundaries[3] = std::min(screen_height, y_end);
 }
 
-static void triangle_bb(Vec3f *vertices, int *boundaries, int screen_width, int screen_height) {
-    int x_start = floor(std::min(vertices[0].x, std::min(vertices[1].x, vertices[2].x)));
-    int x_end = ceil(std::max(vertices[0].x, std::max(vertices[1].x, vertices[2].x)));
-
-    int y_start = floor(std::min(vertices[0].y, std::min(vertices[1].y, vertices[2].y)));
-    int y_end = ceil(std::max(vertices[0].y, std::max(vertices[1].y, vertices[2].y)));
-
-    boundaries[0] = std::max(0, x_start);
-    boundaries[1] = std::min(screen_width, x_end);
-    boundaries[2] = std::max(0, y_start);
-    boundaries[3] = std::min(screen_height, y_end);
-}
-
-static void barycentric_coords(Vector3 const *vertices, Vector3 const p, float &u, float &v, float &w) {
-    // Formula: P = A + w1 * (B - A) + w2 * (C - A)
-    //          P = A + u * vAB + vAC
-    Vector3 vAB = Vector3Subtract(vertices[1], vertices[0]);
-    Vector3 vAC = Vector3Subtract(vertices[2], vertices[0]);
-    Vector3 vAP = Vector3Subtract(p, vertices[0]);
-
-    float den = vAB.x * vAC.y - vAC.x * vAB.y;
-
-    v = (vAP.x * vAC.y - vAC.x * vAP.y) / den;
-    w = (vAB.x * vAP.y - vAP.x * vAB.y) / den;
-    u = 1.0f - v - w;
-}
-
-static void barycentric_coords(Vec3f *vertices, Vec3f p, float &u, float &v, float &w) {
+static void barycentric_coords(Vec3f *vertices, Vec3f p, float &alpha, float &beta, float &gamma) {
     // Formula: P = A + w1 * (B - A) + w2 * (C - A)
     //          P = A + u * vAB + vAC
     Vec3f vAB = vertices[1] - vertices[0];
     Vec3f vAC = vertices[2] - vertices[0];
     Vec3f vAP = p - vertices[0];
 
-    float den = vAB.x * vAC.y - vAC.x * vAB.y;
+    float area_abc = vAB.x * vAC.y - vAC.x * vAB.y;
 
-    v = (vAP.x * vAC.y - vAC.x * vAP.y) / den;
-    w = (vAB.x * vAP.y - vAP.x * vAB.y) / den;
-    u = 1.0f - v - w;
+    beta = (vAP.x * vAC.y - vAC.x * vAP.y) / area_abc;
+    gamma = (vAB.x * vAP.y - vAP.x * vAB.y) / area_abc;
+    alpha = 1.0f - beta - gamma;
 }
 
 void draw_triangle(
@@ -130,61 +102,67 @@ void draw_triangle(
     Image &diffuse_texture,
     const float intencity,
     float *zbuffer) {
-    int screen_width = color_buffer->width;
-    int screen_height = color_buffer->height;
+    // int screen_width = color_buffer->width;
+    // int screen_height = color_buffer->height;
+    //
+    // int boundaries[4];
+    // triangle_bb(vertices, boundaries, screen_width, screen_height);
+    //
+    // Vector3 p;
+    //
+    // for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
+    //     for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
+    //         float u, v, w;
+    //         barycentric_coords(vertices, Vector3{(float)p.x, (float)p.y, 0}, u, v, w);
+    //
+    //         if (w >= 0 && v >= 0 && u >= 0) {
+    //             p.z = u * vertices[0].z + v * vertices[1].z + w * vertices[2].z;
+    //             int index = (int)p.x + (int)p.y * screen_width;
+    //
+    //             if (zbuffer[index] < p.z) {
+    //                 // ######## UV ##########
+    //
+    //                 float alpha = u;
+    //                 float beta = v;
+    //                 float gamma = w;
+    //
+    //                 float u = alpha * uv_coords[0].x + beta * uv_coords[1].x + gamma * uv_coords[2].x;
+    //                 float v = alpha * uv_coords[0].y + beta * uv_coords[1].y + gamma * uv_coords[2].y;
+    //
+    //                 u = floor(u * diffuse_texture.width);
+    //                 v = diffuse_texture.height - floor(v * diffuse_texture.height);
+    //
+    //                 int index_uv = (v * diffuse_texture.height) + u;
+    //
+    //                 Color *data = (Color *)diffuse_texture.data;
+    //                 Color color = GetPixelColor(data + index_uv, diffuse_texture.format);
+    //                 color = {
+    //                     (unsigned char)(color.r * intencity),
+    //                     (unsigned char)(color.g * intencity),
+    //                     (unsigned char)(color.b * intencity),
+    //                     color.a};
+    //
+    //                 // ######## UV ENDS ##########
+    //
+    //                 zbuffer[index] = p.z;
+    //                 color_buffer->set_pixel(p.x, p.y, ColorToInt(color));
+    //             }
+    //         }
+    //     }
+    // }
+}
 
-    int boundaries[4];
-    triangle_bb(vertices, boundaries, screen_width, screen_height);
-
-    Vector3 p;
-
-    for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
-        for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
-            float u, v, w;
-            barycentric_coords(vertices, Vector3{(float)p.x, (float)p.y, 0}, u, v, w);
-
-            if (w >= 0 && v >= 0 && u >= 0) {
-                p.z = u * vertices[0].z + v * vertices[1].z + w * vertices[2].z;
-                int index = (int)p.x + (int)p.y * screen_width;
-
-                if (zbuffer[index] < p.z) {
-                    // ######## UV ##########
-
-                    float alpha = u;
-                    float beta = v;
-                    float gamma = w;
-
-                    float u = alpha * uv_coords[0].x + beta * uv_coords[1].x + gamma * uv_coords[2].x;
-                    float v = alpha * uv_coords[0].y + beta * uv_coords[1].y + gamma * uv_coords[2].y;
-
-                    u = floor(u * diffuse_texture.width);
-                    v = diffuse_texture.height - floor(v * diffuse_texture.height);
-
-                    int index_uv = (v * diffuse_texture.height) + u;
-
-                    Color *data = (Color *)diffuse_texture.data;
-                    Color color = GetPixelColor(data + index_uv, diffuse_texture.format);
-                    color = {
-                        (unsigned char)(color.r * intencity),
-                        (unsigned char)(color.g * intencity),
-                        (unsigned char)(color.b * intencity),
-                        color.a};
-
-                    // ######## UV ENDS ##########
-
-                    zbuffer[index] = p.z;
-                    color_buffer->set_pixel(p.x, p.y, ColorToInt(color));
-                }
-            }
-        }
-    }
+inline float apply_barycentric(float a, float b, float c, float alpha, float beta, float gamma) {
+    return alpha * a + beta * b + gamma * c;
 }
 
 void draw_triangle(
     ColorBuffer *color_buffer,
-    Vec3f *vertices,
-    TinyColor face_color
-    ) {
+    Vec3f vertices[3],
+    Vec2f uv_coords[3],
+    TinyColor face_color,
+    Image *diffuse_texture
+) {
     int screen_width = color_buffer->width;
     int screen_height = color_buffer->height;
 
@@ -192,17 +170,41 @@ void draw_triangle(
     triangle_bb(vertices, boundaries, screen_width, screen_height);
 
     Vector3 p;
+    float u,v;
+    int uv_idx;
+
+    float alpha, beta, gamma;
+    TinyColor color = 0xffffffff;
+    Color *data = (Color *)diffuse_texture->data;
 
     for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
         for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
-            float u, v, w;
-            barycentric_coords(vertices, Vec3f{(float)p.x, (float)p.y, 0}, u, v, w);
+            barycentric_coords(vertices, Vec3f{(float)p.x, (float)p.y, 0}, alpha, beta, gamma);
 
-            if (w >= 0 && v >= 0 && u >= 0) {
-                p.z = u * vertices[0].z + v * vertices[1].z + w * vertices[2].z;
-                int index = (int)p.x + (int)p.y * screen_width;
+            if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                if (diffuse_texture != nullptr) {
+                    u = apply_barycentric(
+                        uv_coords[0].x,
+                        uv_coords[1].x,
+                        uv_coords[2].x,
+                        alpha, beta, gamma);
 
-                color_buffer->set_pixel(p.x, p.y, face_color);
+                    v = apply_barycentric(
+                        uv_coords[0].y,
+                        uv_coords[1].y,
+                        uv_coords[2].y,
+                        alpha, beta, gamma);
+
+                    float z = 1;
+
+                    u = floor(u * diffuse_texture->width) / z;
+                    v = floor(v * diffuse_texture->height) / z;
+
+                    uv_idx = (v * diffuse_texture->height) + u;
+                    color = ColorToInt(GetPixelColor(data + uv_idx, diffuse_texture->format));
+                }
+
+                color_buffer->set_pixel(p.x, p.y, color);
             }
         }
     }
@@ -228,13 +230,13 @@ void draw_rectangle(
 }
 
 void draw_axis(ColorBuffer *color_buffer) {
-    const int unit = 32;
-    float half_height = (float)color_buffer->width / 2;
-    float half_width = (float)color_buffer->height / 2;
-    float axis_length = unit;
-    Vec3f origin = {half_width, half_height, 1};
+    int unit = 16;
+    float margin = 10.f;
 
-    draw_line(color_buffer, origin, {half_width, half_height + axis_length, 1}, 0x00FF00FF);
-    draw_line(color_buffer, origin, {half_width + axis_length, half_height, 1}, 0xFF0000FF);
+    float axis_length = unit;
+    Vec3f origin = {(float)color_buffer->width - margin, margin, 1};
+
+    draw_line(color_buffer, origin, {origin.x, origin.y + axis_length, 1}, 0x00FF00FF);
+    draw_line(color_buffer, origin, {origin.x - axis_length, origin.y, 1}, 0xFF0000FF);
 }
 } // namespace tinyrenderer

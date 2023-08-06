@@ -4,9 +4,9 @@
 #include "../core/color_buffer.h"
 #include <stdint.h>
 
-namespace tinyrenderer::program {
+namespace pixelscape::program {
 struct BackgroundGrid {
     void run(ColorBuffer *color_buffer);
 };
-} // namespace tinyrenderer::program
+} // namespace pixelscape::program
 #endif

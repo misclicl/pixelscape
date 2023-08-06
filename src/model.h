@@ -4,7 +4,7 @@
 #include "raylib.h"
 #include <vector>
 
-namespace tinyrenderer {
+namespace pixelscape {
 struct Face {
     std::vector<int> vertices;
     std::vector<int> uvs;
@@ -29,6 +29,6 @@ public:
     std::vector<int> face_uvs(int idx) const;
     Vector2 uv_coords(int idx) const;
 };
-} // namespace tinyrenderer
+} // namespace pixelscape
 
 #endif //__MODEL_H__

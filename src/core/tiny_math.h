@@ -16,9 +16,12 @@ struct Vec2 {
     T dot(Vec2<T> &v);
     Vec2<T> &normalize();
 
-    Vec2<T> operator+(const Vec2<T> &v) const { return Vec2<T>(x + v.x, y + v.y); }
-    Vec2<T> operator-(const Vec2<T> &v) const { return Vec2<T>(x - v.x, y - v.y); }
-    Vec2<T> operator*(const T &r) const { return Vec2<T>(x * r, y * r); }
+    Vec2<T> operator+(Vec2<T> &v) { return Vec2<T>(x + v.x, y + v.y); }
+    Vec2<T> operator-(Vec2<T> &v) { return Vec2<T>(x - v.x, y - v.y); }
+    // Vec2<T> operator-(Vec2<T> v) { return Vec2<T>(x - v.x, y - v.y); }
+    Vec2<T> operator-() { return Vec2<T>(- x, -y ); }
+    Vec2<T> operator*(T &r) { return Vec2<T>(x * r, y * r); }
+    bool operator==(Vec2<T> other) { return x == other.x && y == other.y; }
 };
 
 typedef Vec2<float> Vec2f;
@@ -38,8 +41,9 @@ struct Vec3 {
 
     Vec3<T> operator+(Vec3<T> &v) { return Vec3<T>(x + v.x, y + v.y, z + v.z); }
     Vec3<T> operator-(Vec3<T> &v) { return Vec3<T>(x - v.x, y - v.y, z - v.z); }
+    Vec3<T> operator-() { return Vec3<T>(- x, -y, -z); }
     Vec3<T> operator*(T r) { return Vec3<T>(x * r, y * r, z * r); }
-    bool operator==(Vec3<T> &v) { return x == v.x && y == v.y && z == v.y; }
+    bool operator==(Vec3<T> v) { return x == v.x && y == v.y && z == v.y; }
 
     // counter-clockwise when looking from positive to negative
     static Vec3<T> rotate_y(Vec3<T> *v, float angle);
@@ -51,10 +55,19 @@ struct Vec3 {
 
 typedef Vec3<float> Vec3f;
 
+// NOTE: I should probably remove templates from Vec3 and Vec2
+// as I never use them for anything but floats. All it does is
+// adds complexity
 struct Vec4f {
     float x, y, z, w;
+
+    Vec4f operator+(Vec4f &v) { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
+    Vec4f operator-(Vec4f &v) { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
+    Vec4f operator-() { return {- x, -y, -z, -w}; }
+    Vec4f operator*(float r) { return {x * r, y * r, z * r, w * r}; }
 };
 
 Vec4f vec4_from_vec3(Vec3f v);
+Vec3f vec3_from_vec4(Vec4f v);
 
 #endif

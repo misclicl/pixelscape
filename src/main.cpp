@@ -26,14 +26,14 @@
 const int window_width = 512;
 const int window_height = 512;
 
-const int target_render_size_x = 256;
-const int target_render_size_y = 256;
+const int target_render_size_x = window_width / 2;
+const int target_render_size_y = window_height / 2;
 
 int main(int argc, char **argv) {
-    InitWindow(window_width, window_height, "tinyrenderer");
+    InitWindow(window_width, window_height, "pixelscape");
     SetTargetFPS(60);
 
-    tinyrenderer::Model *model = new tinyrenderer::Model("assets/head.obj");
+    pixelscape::Model *model = new pixelscape::Model("assets/head.obj");
 
     // Image diffuse_img = LoadImage("assets/diffuse.png");
     Image diffuse_img = LoadImage("assets/grid.png");
@@ -43,17 +43,17 @@ int main(int argc, char **argv) {
     RenderTexture2D render_texture = LoadRenderTexture(target_render_size_x, target_render_size_y);
 
 
-    tinyrenderer::program::BackgroundGrid bg_grid;
-    tinyrenderer::program::DrawRectangles draw_rectangles;
-    tinyrenderer::program::Projection projection;
+    pixelscape::program::BackgroundGrid bg_grid;
+    pixelscape::program::DrawRectangles draw_rectangles;
+    pixelscape::program::Projection projection;
 
-    tinyrenderer::MeshRendering::Program mesh_rendering;
+    pixelscape::MeshRendering::Program mesh_rendering;
     mesh_rendering.init();
 
-    tinyrenderer::RenderWithShading::Program render_with_shading;
+    pixelscape::RenderWithShading::Program render_with_shading;
 
 
-    tinyrenderer::ColorBuffer color_buffer;
+    pixelscape::ColorBuffer color_buffer;
     color_buffer.width = target_render_size_x;
     color_buffer.height = target_render_size_y;
     color_buffer.pixels =
@@ -70,11 +70,11 @@ int main(int argc, char **argv) {
         // bg_grid.run(&color_buffer);
         // draw_rectangles.run(&color_buffer);
         // projection.run(&color_buffer, frame_counter);
-        // tinyrenderer::linear_transformations(&color_buffer);
+        // pixelscape::linear_transformations(&color_buffer);
 
         // render_with_shading.run(&color_buffer, model, light_dir, diffuse_img);
         mesh_rendering.run(&color_buffer);
-        tinyrenderer::draw_axis(&color_buffer);
+        pixelscape::draw_axis(&color_buffer);
 
         color_buffer.draw_to_texture();
 

@@ -5,7 +5,7 @@
 #include "color_buffer.h"
 #include "tiny_color.h"
 
-namespace tinyrenderer {
+namespace pixelscape {
 uint32_t *ColorBuffer::get_buffer_pixel(int x, int y) {
     if (x < 0 || x >= width || y < 0 || y >= height) {
         return nullptr;

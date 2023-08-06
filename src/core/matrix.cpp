@@ -217,3 +217,27 @@ Vec4f mat4_multiply_projection_vec4(Matrix4 mat, Vec4f vec) {
 
     return out;
 }
+
+Matrix4 mat4_get_world(Vec3f scale, Vec3f rotation, Vec3f translation) {
+    Matrix4 m_scale = mat4_get_scale(
+        scale.x,
+        scale.y,
+        scale.z
+    );
+
+    Matrix4 m_translation = mat4_get_translation(
+        translation.x,
+        translation.y,
+        translation.z
+    );
+
+    Matrix4 m_rotation = mat4_get_rotation(
+        rotation.x,
+        rotation.y,
+        rotation.z
+    );
+
+    Matrix4 out = mat4_multiply(m_scale, mat4_multiply(m_rotation, m_translation));
+    return out;
+}
+

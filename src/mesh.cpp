@@ -1,6 +1,6 @@
 #include "mesh.h"
 
-namespace tinyrenderer {
+namespace pixelscape {
 
 /*
  *                                  |
@@ -50,4 +50,4 @@ TinyFace cube_faces[CUBE_FACES_COUNT] = {
     // right
     {2, 1, 5},
     {2, 5, 6}};
-} // namespace tinyrenderer
+} // namespace pixelscape

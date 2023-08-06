@@ -3,7 +3,7 @@
 
 #include "../core/color_buffer.h"
 
-namespace tinyrenderer {
+namespace pixelscape {
     void linear_transformations(ColorBuffer *color_buffer);
 }
 

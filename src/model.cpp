@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-tinyrenderer::Model::Model(const char *filename) : verts_(), faces_(), uv_coords_() {
+pixelscape::Model::Model(const char *filename) : verts_(), faces_(), uv_coords_() {
     std::ifstream in;
     in.open(filename, std::ifstream::in);
     if (in.fail())
@@ -24,7 +24,7 @@ tinyrenderer::Model::Model(const char *filename) : verts_(), faces_(), uv_coords
             iss >> v.z;
             verts_.push_back(v);
         } else if (!line.compare(0, 2, "f ")) {
-            tinyrenderer::Face face;
+            pixelscape::Face face;
 
             int idx, idx_uv, itrash;
 
@@ -51,33 +51,33 @@ tinyrenderer::Model::Model(const char *filename) : verts_(), faces_(), uv_coords
     }
 }
 
-tinyrenderer::Model::~Model() {
+pixelscape::Model::~Model() {
 }
 
-int tinyrenderer::Model::Model::n_verts() const {
+int pixelscape::Model::Model::n_verts() const {
     return (int)verts_.size();
 }
 
-int tinyrenderer::Model::Model::n_faces() const {
+int pixelscape::Model::Model::n_faces() const {
     return (int)faces_.size();
 }
 
-int tinyrenderer::Model::Model::n_uv_coords() const {
+int pixelscape::Model::Model::n_uv_coords() const {
     return (int)uv_coords_.size();
 }
 
-std::vector<int> tinyrenderer::Model::Model::face_vertices(int i) const {
+std::vector<int> pixelscape::Model::Model::face_vertices(int i) const {
     return faces_[i].vertices;
 }
 
-std::vector<int> tinyrenderer::Model::Model::face_uvs(int i) const {
+std::vector<int> pixelscape::Model::Model::face_uvs(int i) const {
     return faces_[i].uvs;
 }
 
-Vector3 tinyrenderer::Model::Model::vert(int i) const {
+Vector3 pixelscape::Model::Model::vert(int i) const {
     return verts_[i];
 }
 
-Vector2 tinyrenderer::Model::Model::uv_coords(int i) const {
+Vector2 pixelscape::Model::Model::uv_coords(int i) const {
     return uv_coords_[i];
 }

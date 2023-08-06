@@ -10,7 +10,7 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
-namespace tinyrenderer {
+namespace pixelscape {
 void draw_line(ColorBuffer *color_buffer, Vec3f p0, Vec3f p1, uint32_t color);
 
 void draw_rectangle(
@@ -37,11 +37,12 @@ void draw_triangle(
 
 void draw_triangle(
     ColorBuffer *color_buffer,
-    Vec3f *vertices,
-    TinyColor face_color
-    // float *zbuffer
+    Vec3f vertices[3],
+    Vec2f texcoords[3],
+    TinyColor face_color,
+    Image *diffuse_texture
 );
 
 void draw_axis(ColorBuffer *color_buffer);
-} // namespace tinyrenderer
+} // namespace pixelscape
 #endif

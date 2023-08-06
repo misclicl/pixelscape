@@ -8,7 +8,7 @@
 #include "../mesh.h"
 #include "../light.h"
 
-namespace tinyrenderer::MeshRendering {
+namespace pixelscape::MeshRendering {
 enum RenderingFlags {
     BACKFACE_CULLING,
     VERTEX_ORDERING,
@@ -23,7 +23,9 @@ enum RenderingFlags {
 
 struct FaceBufferItem {
     Vec3f vertices[3];
-    Vec3f normal_vec;
+    Vec2f texcoords[3];
+    Vec3f triangle_normal;
+
     TinyColor color;
     float avg_depth;
 };
@@ -45,5 +47,5 @@ struct Program {
 
     std::vector<FaceBufferItem> faces_to_render;
 };
-} // namespace tinyrenderer::MeshRendering
+} // namespace pixelscape::MeshRendering
 #endif

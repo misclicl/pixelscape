@@ -6,7 +6,7 @@
 #include "projection.h"
 #include "raylib.h"
 
-namespace tinyrenderer {
+namespace pixelscape {
 Vec3f camera_position = {0, 0, 2};
 float fov_factor = 70;
 
@@ -91,4 +91,4 @@ void program::Projection::run(ColorBuffer *color_buffer, int delta) {
     perspective(color_buffer, vertices, size * size * size, delta);
     free(vertices);
 }
-} // namespace tinyrenderer
+} // namespace pixelscape

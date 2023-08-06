@@ -6,7 +6,7 @@
 
 #include "../core/display.h"
 
-namespace tinyrenderer {
+namespace pixelscape {
 
 float cube_halfsize = 50;
 // FIXME: put somewhere else. it's in global space
@@ -45,7 +45,7 @@ void linear_transformations(ColorBuffer *color_buffer) {
     for (const Vector3 &vertex : vertx) {
         v_out.push_back(Vector3Transform(vertex, m));
     }
-    // tinyrenderer::draw_triangles(
+    // pixelscape::draw_triangles(
     //     color_buffer,
     //     v_out, 
     //     indices,
@@ -57,7 +57,7 @@ void linear_transformations(ColorBuffer *color_buffer) {
     for (const Vector3 &vertex : vertx) {
         v_out.push_back(Vector3Transform(vertex, m));
     }
-    // tinyrenderer::draw_triangles(
+    // pixelscape::draw_triangles(
     //     color_buffer,
     //     v_out, 
     //     indices,
@@ -70,7 +70,7 @@ void linear_transformations(ColorBuffer *color_buffer) {
     for (const Vector3 &vertex : vertx) {
         v_out.push_back(Vector3Transform(vertex, m));
     }
-    // tinyrenderer::draw_triangles(
+    // pixelscape::draw_triangles(
     //     color_buffer,
     //     v_out,
     //     indices,
