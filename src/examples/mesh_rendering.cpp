@@ -90,12 +90,13 @@ static void render_triangle(
             face->vertices,
             face->texcoords,
             base_color,
-            diffuse_texture
+            diffuse_texture,
+            intensity
         );
     }
 
     if (render_flags[DISPLAY_WIREFRAME]) {
-        // draw_triangle_wireframe(color_buffer, face->vertices, 0xFFAFAFAF);
+        draw_triangle_wireframe(color_buffer, face->vertices, 0xFFAFAFAF);
     }
 
     if (render_flags[DISPLAY_VERTICES]) {
@@ -117,7 +118,6 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
 
 
     Vec3f **face_vertices = (Vec3f **)malloc(sizeof(Vec3f *) * 3);
-    // Vec3f **
 
     Vec3f v_view[3];
     Vec4f v_camera[3];
@@ -169,7 +169,6 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
             v_camera[j] = {
                 (v_projected.x * half_width) + half_width,
                 (v_projected.y * half_height)+ half_height,
-                // TODO: multiply?
                 v_projected.z,
                 v_projected.w,
             };
@@ -243,7 +242,8 @@ void MeshRendering::Program::init() {
     std::vector<Vertex> vertices;
     std::vector<TinyFace> faces;
 
-    parse_mesh(cube_obj_path, &vertices, &faces);
+    // parse_mesh(cube_obj_path, &vertices, &faces);
+    parse_mesh(head_obj_path, &vertices, &faces);
 
     mesh.vertices = (Vertex *)malloc(vertices.size() * sizeof(Vertex));
     mesh.faces = (TinyFace *)malloc(faces.size() * sizeof(TinyFace));
@@ -262,8 +262,8 @@ void MeshRendering::Program::init() {
     mesh.scale = { 1.0f, 1.0f, 1.0f };
     mesh.translation = { 0.f, 0.f, -5.f };
     mesh.rotation.x = -DEG2RAD * 10;
-    // mesh.diffuse_texture = LoadImage("assets/headscan-128.png");
-    mesh.diffuse_texture = LoadImage("assets/grid.png");
+    mesh.diffuse_texture = LoadImage("assets/headscan-128.png");
+    // mesh.diffuse_texture = LoadImage("assets/grid.png");
 
     light.direction = { 0.f, 1.f, -.5f };
 }

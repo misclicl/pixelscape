@@ -11,7 +11,12 @@
 #include "tiny_math.h"
 
 namespace pixelscape {
-void draw_line(ColorBuffer *color_buffer, Vec3f p0, Vec3f p1, uint32_t color);
+void draw_line(
+    ColorBuffer *color_buffer, 
+    float x0, float y0,
+    float x1, float y1,
+    Vec3f p1,
+    uint32_t color);
 
 void draw_rectangle(
     ColorBuffer *color_buffer,
@@ -22,25 +27,26 @@ void draw_rectangle(
 
 void draw_triangle_wireframe(
     ColorBuffer *color_buffer,
-    Vec3f *vertices,
+    Vec4f *vertices,
     TinyColor color
 );
 
-void draw_triangle(
-    ColorBuffer *color_buffer,
-    const Vector3 *vertices,
-    const Vector2 (&uv_coords)[3],
-    Image &diffuse_texture,
-    const float intencity,
-    float *zbuffer
-);
+// void draw_triangle(
+//     ColorBuffer *color_buffer,
+//     const Vector3 *vertices,
+//     const Vector2 (&uv_coords)[3],
+//     Image &diffuse_texture,
+//     const float intencity,
+//     float *zbuffer
+// );
 
 void draw_triangle(
     ColorBuffer *color_buffer,
     Vec4f vertices[3],
     Vec2f texcoords[3],
     TinyColor face_color,
-    Image *diffuse_texture
+    Image *diffuse_texture,
+    float intensity
 );
 
 void draw_axis(ColorBuffer *color_buffer);

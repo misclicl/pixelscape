@@ -13,14 +13,9 @@ namespace pixelscape {
 
 void draw_line(
     ColorBuffer *color_buffer,
-    Vec3f p0,
-    Vec3f p1,
+    float x0, float y0,
+    float x1, float y1,
     TinyColor color) {
-    int x0 = p0.x;
-    int y0 = p0.y;
-    int x1 = p1.x;
-    int y1 = p1.y;
-
     bool isSteep = false;
 
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
@@ -61,14 +56,14 @@ void draw_line(
 
 void draw_triangle_wireframe(
     ColorBuffer *color_buffer,
-    Vec3f *vertices,
+    Vec4f *vertices,
     TinyColor color) {
-    draw_line(color_buffer, vertices[0], vertices[1], color);
-    draw_line(color_buffer, vertices[1], vertices[2], color);
-    draw_line(color_buffer, vertices[2], vertices[0], color);
+    draw_line(color_buffer, vertices[0].x, vertices[0].y, vertices[1].x, vertices[1].y, color);
+    draw_line(color_buffer, vertices[1].x, vertices[1].y, vertices[2].x, vertices[2].y, color);
+    draw_line(color_buffer, vertices[2].x, vertices[2].y, vertices[0].x, vertices[0].y, color);
 }
 
-static void triangle_bb(Vec2<int> vertices[3], int boundaries[4], int screen_width, int screen_height) {
+static void triangle_bb(Vec2f vertices[3], int boundaries[4], int screen_width, int screen_height) {
     int x_start = floor(std::min(vertices[0].x, std::min(vertices[1].x, vertices[2].x)));
     int x_end = ceil(std::max(vertices[0].x, std::max(vertices[1].x, vertices[2].x)));
 
@@ -81,12 +76,13 @@ static void triangle_bb(Vec2<int> vertices[3], int boundaries[4], int screen_wid
     boundaries[3] = std::min(screen_height, y_end);
 }
 
-static void barycentric_coords(Vec2<int> vertices[3], Vec2<int> p, float *alpha, float *beta, float *gamma) {
+// static void barycentric_coords(Vec2<int> vertices[3], Vec2<int> p, float *alpha, float *beta, float *gamma) {
+static void barycentric_coords(Vec2f vertices[3], Vec2f p, float *alpha, float *beta, float *gamma) {
     // Formula: P = A + w1 * (B - A) + w2 * (C - A)
     //          P = A + u * vAB + vAC
-    Vec2<int> vAB = vertices[1] - vertices[0];
-    Vec2<int> vAC = vertices[2] - vertices[0];
-    Vec2<int> vAP = p - vertices[0];
+    Vec2f vAB = vertices[1] - vertices[0];
+    Vec2f vAC = vertices[2] - vertices[0];
+    Vec2f vAP = p - vertices[0];
 
     float area_abc = vAB.x * vAC.y - vAC.x * vAB.y;
 
@@ -156,60 +152,81 @@ inline float apply_barycentric(float a, float b, float c, float alpha, float bet
     return alpha * a + beta * b + gamma * c;
 }
 
+static void draw_triangle_pixel() {
+}
+
 void draw_triangle(
     ColorBuffer *color_buffer,
     Vec4f vertices[3],
     Vec2f uv_coords[3],
     TinyColor face_color,
-    Image *diffuse_texture
+    Image *diffuse_texture,
+    float intensity
 ) {
     int screen_width = color_buffer->width;
     int screen_height = color_buffer->height;
 
     int boundaries[4];
 
-    Vec2<int> p;
-    float u,v;
-    int uv_idx;
+    Vec2f p;
+
+    // Store interpolated values
+    float u, v;
+    float w_inverse; // Holds depth of a pixel
 
     float alpha, beta, gamma;
     TinyColor color = 0xffffffff;
     Color *data = (Color *)diffuse_texture->data;
 
-    Vec2<int> v_screen[3] = { 
-        {static_cast<int>(vertices[0].x), static_cast<int>(vertices[0].y)},
-        {static_cast<int>(vertices[1].x), static_cast<int>(vertices[1].y)},
-        {static_cast<int>(vertices[2].x), static_cast<int>(vertices[2].y)} 
+    Vec2f v_screen[3] = { 
+        {(vertices[0].x), (vertices[0].y)},
+        {(vertices[1].x), (vertices[1].y)},
+        {(vertices[2].x), (vertices[2].y)} 
     };
+
     triangle_bb(v_screen, boundaries, screen_width, screen_height);
+
+    float w_inverse0 = 1 / vertices[0].w;
+    float w_inverse1 = 1 / vertices[1].w;
+    float w_inverse2 = 1 / vertices[2].w;
 
     for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
         for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
-            // barycentric_coords(vertices, Vec2<int>{p.x, p.y, 0}, alpha, beta, gamma);
-            barycentric_coords(v_screen, Vec2<int>{p.x, p.y}, &alpha, &beta, &gamma);
+            barycentric_coords(v_screen, {p.x, p.y}, &alpha, &beta, &gamma);
 
             if (alpha >= 0 && beta >= 0 && gamma >= 0) {
                 if (diffuse_texture != nullptr) {
-                    u = apply_barycentric(
-                        uv_coords[0].x,
-                        uv_coords[1].x,
-                        uv_coords[2].x,
-                        alpha, beta, gamma);
-
-                    v = apply_barycentric(
-                        uv_coords[0].y,
-                        uv_coords[1].y,
-                        uv_coords[2].y,
-                        alpha, beta, gamma);
-
                     // TODO: perspective adjustment
                     float z = 1;
 
-                    u = floor(u * diffuse_texture->width) / z;
-                    v = floor(v * diffuse_texture->height) / z;
+                    // UV Interpolation of u/w and v/w
+                    u = apply_barycentric(
+                        uv_coords[0].x / vertices[0].w,
+                        uv_coords[1].x / vertices[1].w,
+                        uv_coords[2].x / vertices[2].w,
+                        alpha, beta, gamma);
+                    v = apply_barycentric(
+                        uv_coords[0].y / vertices[0].w,
+                        uv_coords[1].y / vertices[1].w,
+                        uv_coords[2].y / vertices[2].w,
+                        alpha, beta, gamma);
 
-                    uv_idx = (v * diffuse_texture->height) + u;
+                    w_inverse = apply_barycentric(
+                        w_inverse0,
+                        w_inverse1,
+                        w_inverse2,
+                        alpha, beta, gamma);
+
+                    u /= w_inverse;
+                    v /= w_inverse;
+
+                    // in-texture coords
+                    u = floor(u * diffuse_texture->width);
+                    v = floor(v * diffuse_texture->height);
+
+                    size_t uv_idx = (v * diffuse_texture->height) + u;
                     color = ColorToInt(GetPixelColor(data + uv_idx, diffuse_texture->format));
+                    color = apply_intensity(color, intensity);
                 }
 
                 color_buffer->set_pixel(p.x, p.y, color);
@@ -244,7 +261,7 @@ void draw_axis(ColorBuffer *color_buffer) {
     float axis_length = unit;
     Vec3f origin = {(float)color_buffer->width - margin, margin, 1};
 
-    draw_line(color_buffer, origin, {origin.x, origin.y + axis_length, 1}, 0x00FF00FF);
-    draw_line(color_buffer, origin, {origin.x - axis_length, origin.y, 1}, 0xFF0000FF);
+    draw_line(color_buffer, origin.x, origin.y, origin.x, origin.y + axis_length, 0x00FF00FF);
+    draw_line(color_buffer, origin.x, origin.y, origin.x - axis_length, origin.y, 0xFF0000FF);
 }
 } // namespace tinyrenderer
