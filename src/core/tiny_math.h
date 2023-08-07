@@ -6,21 +6,25 @@
 
 template <typename T>
 struct Vec2 {
-    Vec2();
-    Vec2(T &xx);
-    Vec2(T xx, T yy);
+    Vec2() : x(0), y(0) {};
+    Vec2(T xx) : x(xx), y(0) {};
+    Vec2(T xx, T yy) : x(xx), y(yy) {};
 
     T x, y;
+    // Vec2();
+    // Vec2(T &xx);
+    // Vec2(T xx, T yy);
+    //
+    // T x, y;
 
     T length();
     T dot(Vec2<T> &v);
     Vec2<T> &normalize();
 
-    Vec2<T> operator+(Vec2<T> &v) { return Vec2<T>(x + v.x, y + v.y); }
-    Vec2<T> operator-(Vec2<T> &v) { return Vec2<T>(x - v.x, y - v.y); }
-    // Vec2<T> operator-(Vec2<T> v) { return Vec2<T>(x - v.x, y - v.y); }
-    Vec2<T> operator-() { return Vec2<T>(- x, -y ); }
-    Vec2<T> operator*(T &r) { return Vec2<T>(x * r, y * r); }
+    Vec2<T> operator+(Vec2<T> &v) { return {x + v.x, y + v.y}; }
+    Vec2<T> operator-(Vec2<T> &v) { return {x - v.x, y - v.y}; }
+    Vec2<T> operator-() { return {- x, -y }; }
+    Vec2<T> operator*(T &r) { return {x * r, y * r}; }
     bool operator==(Vec2<T> other) { return x == other.x && y == other.y; }
 };
 

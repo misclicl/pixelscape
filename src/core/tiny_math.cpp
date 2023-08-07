@@ -68,10 +68,6 @@ template struct Vec3<float>;
 
 // SECTION: Vec2
 
-template <typename T> Vec2<T>::Vec2() : x(T(0)), y(T(0)) {};
-template <typename T> Vec2<T>::Vec2(T &xx) : x(xx), y(xx) {};
-template <typename T> Vec2<T>::Vec2(T xx, T yy) : x(xx), y(yy) {};
-
 template <typename T> T Vec2<T>::length() {
     return sqrt(x * x + y * y);
 }

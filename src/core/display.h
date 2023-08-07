@@ -37,7 +37,7 @@ void draw_triangle(
 
 void draw_triangle(
     ColorBuffer *color_buffer,
-    Vec3f vertices[3],
+    Vec4f vertices[3],
     Vec2f texcoords[3],
     TinyColor face_color,
     Image *diffuse_texture

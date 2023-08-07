@@ -22,7 +22,7 @@ enum RenderingFlags {
 };
 
 struct FaceBufferItem {
-    Vec3f vertices[3];
+    Vec4f vertices[3];
     Vec2f texcoords[3];
     Vec3f triangle_normal;
 

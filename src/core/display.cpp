@@ -68,7 +68,7 @@ void draw_triangle_wireframe(
     draw_line(color_buffer, vertices[2], vertices[0], color);
 }
 
-static void triangle_bb(Vec3f vertices[3], int boundaries[4], int screen_width, int screen_height) {
+static void triangle_bb(Vec2<int> vertices[3], int boundaries[4], int screen_width, int screen_height) {
     int x_start = floor(std::min(vertices[0].x, std::min(vertices[1].x, vertices[2].x)));
     int x_end = ceil(std::max(vertices[0].x, std::max(vertices[1].x, vertices[2].x)));
 
@@ -81,18 +81,18 @@ static void triangle_bb(Vec3f vertices[3], int boundaries[4], int screen_width, 
     boundaries[3] = std::min(screen_height, y_end);
 }
 
-static void barycentric_coords(Vec3f *vertices, Vec3f p, float &alpha, float &beta, float &gamma) {
+static void barycentric_coords(Vec2<int> vertices[3], Vec2<int> p, float *alpha, float *beta, float *gamma) {
     // Formula: P = A + w1 * (B - A) + w2 * (C - A)
     //          P = A + u * vAB + vAC
-    Vec3f vAB = vertices[1] - vertices[0];
-    Vec3f vAC = vertices[2] - vertices[0];
-    Vec3f vAP = p - vertices[0];
+    Vec2<int> vAB = vertices[1] - vertices[0];
+    Vec2<int> vAC = vertices[2] - vertices[0];
+    Vec2<int> vAP = p - vertices[0];
 
     float area_abc = vAB.x * vAC.y - vAC.x * vAB.y;
 
-    beta = (vAP.x * vAC.y - vAC.x * vAP.y) / area_abc;
-    gamma = (vAB.x * vAP.y - vAP.x * vAB.y) / area_abc;
-    alpha = 1.0f - beta - gamma;
+    *beta =  (float)(vAP.x * vAC.y - vAC.x * vAP.y) / area_abc;
+    *gamma = (float)(vAB.x * vAP.y - vAP.x * vAB.y) / area_abc;
+    *alpha = 1.0f - *beta - *gamma;
 }
 
 void draw_triangle(
@@ -158,7 +158,7 @@ inline float apply_barycentric(float a, float b, float c, float alpha, float bet
 
 void draw_triangle(
     ColorBuffer *color_buffer,
-    Vec3f vertices[3],
+    Vec4f vertices[3],
     Vec2f uv_coords[3],
     TinyColor face_color,
     Image *diffuse_texture
@@ -167,9 +167,8 @@ void draw_triangle(
     int screen_height = color_buffer->height;
 
     int boundaries[4];
-    triangle_bb(vertices, boundaries, screen_width, screen_height);
 
-    Vector3 p;
+    Vec2<int> p;
     float u,v;
     int uv_idx;
 
@@ -177,9 +176,17 @@ void draw_triangle(
     TinyColor color = 0xffffffff;
     Color *data = (Color *)diffuse_texture->data;
 
+    Vec2<int> v_screen[3] = { 
+        {static_cast<int>(vertices[0].x), static_cast<int>(vertices[0].y)},
+        {static_cast<int>(vertices[1].x), static_cast<int>(vertices[1].y)},
+        {static_cast<int>(vertices[2].x), static_cast<int>(vertices[2].y)} 
+    };
+    triangle_bb(v_screen, boundaries, screen_width, screen_height);
+
     for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
         for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
-            barycentric_coords(vertices, Vec3f{(float)p.x, (float)p.y, 0}, alpha, beta, gamma);
+            // barycentric_coords(vertices, Vec2<int>{p.x, p.y, 0}, alpha, beta, gamma);
+            barycentric_coords(v_screen, Vec2<int>{p.x, p.y}, &alpha, &beta, &gamma);
 
             if (alpha >= 0 && beta >= 0 && gamma >= 0) {
                 if (diffuse_texture != nullptr) {
@@ -195,6 +202,7 @@ void draw_triangle(
                         uv_coords[2].y,
                         alpha, beta, gamma);
 
+                    // TODO: perspective adjustment
                     float z = 1;
 
                     u = floor(u * diffuse_texture->width) / z;

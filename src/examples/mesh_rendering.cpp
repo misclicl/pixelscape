@@ -82,6 +82,8 @@ static void render_triangle(
 
     base_color = apply_intensity(base_color, intensity);
 
+    // TODO: might be a good idea to move all vertex array conversion 
+    // over here. I already done it in DISPLAY_VERTICES section
     if (render_flags[DISPLAY_TRIANGLES]) {
         draw_triangle(
             color_buffer, 
@@ -93,7 +95,7 @@ static void render_triangle(
     }
 
     if (render_flags[DISPLAY_WIREFRAME]) {
-        draw_triangle_wireframe(color_buffer, face->vertices, 0xFFAFAFAF);
+        // draw_triangle_wireframe(color_buffer, face->vertices, 0xFFAFAFAF);
     }
 
     if (render_flags[DISPLAY_VERTICES]) {
@@ -118,7 +120,7 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
     // Vec3f **
 
     Vec3f v_view[3];
-    Vec3f v_camera[3];
+    Vec4f v_camera[3];
 
     Matrix4 mat_world = mat4_get_world(
         mesh.scale,
@@ -167,16 +169,18 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
             v_camera[j] = {
                 (v_projected.x * half_width) + half_width,
                 (v_projected.y * half_height)+ half_height,
-                v_view[j].z,
+                // TODO: multiply?
+                v_projected.z,
+                v_projected.w,
             };
         }
 
         // Write transformed to buffer
         FaceBufferItem f = {
             .vertices = {
-                { v_camera[0].x, v_camera[0].y, v_camera[0].z },
-                { v_camera[1].x, v_camera[1].y, v_camera[1].z },
-                { v_camera[2].x, v_camera[2].y, v_camera[2].z },
+                { v_camera[0].x, v_camera[0].y, v_camera[0].z, v_camera[0].w},
+                { v_camera[1].x, v_camera[1].y, v_camera[1].z, v_camera[1].w},
+                { v_camera[2].x, v_camera[2].y, v_camera[2].z, v_camera[2].w},
             },
             .texcoords = {
                 { 
