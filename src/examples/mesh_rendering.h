@@ -28,7 +28,6 @@ struct FaceBufferItem {
     Vec3f triangle_normal;
 
     TinyColor color;
-    float avg_depth;
 };
     
 struct Program {
@@ -46,7 +45,9 @@ struct Program {
     Mesh mesh;
     std::bitset<24> render_flags;
 
-    std::vector<FaceBufferItem> faces_to_render;
+    FaceBufferItem *face_buffer;
+    size_t face_buffer_size = 0;
+
     float *depth_buffer;
 };
 } // namespace pixelscape::MeshRendering

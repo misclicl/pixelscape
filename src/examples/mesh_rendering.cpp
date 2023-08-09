@@ -16,6 +16,7 @@
 #include "mesh_rendering.h"
 
 #define ROTATION_SPEED 1.2f
+#define FACE_BUFFER_SIZE_LIMIT 250000
 
 namespace pixelscape::MeshRendering {
 
@@ -112,16 +113,13 @@ static void render_triangle(
 }
 
 void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
-    faces_to_render.clear();
+    face_buffer_size = 0;
 
     int depth_buffer_size = color_buffer->height * color_buffer->width;
     std::fill_n(depth_buffer, depth_buffer_size, 1000);
 
     int half_width = color_buffer->width / 2;
     int half_height = color_buffer->height / 2;
-
-
-    Vec3f **face_vertices = (Vec3f **)malloc(sizeof(Vec3f *) * 3);
 
     Vec3f v_view[3];
     Vec4f v_camera[3];
@@ -135,14 +133,11 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
     for (int i = 0; i < mesh.face_count; i++) {
         TinyFace *face = &(mesh.faces[i]);
 
-        face_vertices[0] = &(mesh.vertices[face->indices[0]].position);
-        face_vertices[1] = &(mesh.vertices[face->indices[1]].position);
-        face_vertices[2] = &(mesh.vertices[face->indices[2]].position);
-
         for (int j = 0; j < 3; j++) {
-            Vec3f vertex = *face_vertices[j];
-
-            Vec4f v_world = mat4_multiply_vec4(&mat_world, vec4_from_vec3(vertex));
+            Vec4f v_world = mat4_multiply_vec4(
+                &mat_world, 
+                vec4_from_vec3(mesh.vertices[face->indices[j]].position)
+            );
 
             // FIXME: No need to transform for now as the camera is located in the origin
             v_view[j] = {v_world.x, v_world.y, v_world.z};
@@ -158,9 +153,6 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
                 continue;
             }
         }
-
-        // Calculate face depth
-        float avg_depth = (v_view[0].z + v_view[1].z + v_view[2].z) / 3.f;
 
         // view -> projection step
         float aspect_ratio = (float)(color_buffer->height) / (float)(color_buffer->width);
@@ -200,30 +192,18 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
                 }
             },
             .triangle_normal = triangle_normal, 
-            .avg_depth = avg_depth,
         };
 
-        faces_to_render.push_back(f);
-
+        face_buffer[face_buffer_size++] = f;
     }
-
-    int num_triangles = faces_to_render.size();
-
-    if (render_flags[VERTEX_ORDERING]) {
-        std::sort(faces_to_render.begin(), faces_to_render.end(), [](const FaceBufferItem &a, const FaceBufferItem &b) {
-            return a.avg_depth < b.avg_depth;
-        });
-    }
-
-    free(face_vertices);
 }
 
 void MeshRendering::Program::render_mesh(ColorBuffer *color_buffer) {
-    for (FaceBufferItem face : faces_to_render) {
+    for (int i = 0; i < face_buffer_size; i++) {
         render_triangle(
             color_buffer, 
             depth_buffer,
-            &face,
+            &face_buffer[i],
             render_flags,
             &light,
             &mesh.diffuse_texture
@@ -276,6 +256,7 @@ void MeshRendering::Program::init(int width, int height) {
     light.direction = { 0.f, 1.f, -.5f };
 
     depth_buffer = (float *)malloc(width * height * sizeof(float));
+    face_buffer = (FaceBufferItem *)malloc(FACE_BUFFER_SIZE_LIMIT * sizeof(FaceBufferItem));
 }
 
 void MeshRendering::Program::run(ColorBuffer *color_buffer) {
@@ -334,6 +315,7 @@ void MeshRendering::Program::cleanup() {
     mesh.faces = nullptr; // Set the pointer to nullptr after freeing
 
     free(depth_buffer);
+    free(face_buffer);
 
     UnloadImage(mesh.diffuse_texture);
 }

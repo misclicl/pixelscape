@@ -10,7 +10,7 @@ set(CMAKE_BUILD_TYPE Debug)
 # set(CMAKE_CXX_FLAGS_DEBUG "-g")
 # set(CMAKE_CXX_FLAGS_RELEASE "-O3")
 
-project(tiny-renderer VERSION 0.0.1)
+project(pixelscape VERSION 0.0.1)
 
 # Define MY_SOURCES to be a list of all the source files for my game 
 file(GLOB_RECURSE MY_SOURCES CONFIGURE_DEPENDS 
@@ -28,7 +28,7 @@ add_executable("${CMAKE_PROJECT_NAME}")
 target_sources("${CMAKE_PROJECT_NAME}" PRIVATE ${MY_SOURCES} )
 
 # Link the libraries to the executable
-target_link_libraries(tiny-renderer raylib)
+target_link_libraries(pixelscape raylib)
 
 if (APPLE)
     target_link_libraries(${PROJECT_NAME} "-framework IOKit")
