@@ -58,8 +58,11 @@ static Vec3f get_triangle_normal(Vec3f *vertices) {
     return Vec3f::cross(vec_ab, vec_ac).normalize();
 };
 
+static Color light_color = {200, 20, 180, 255};
+
 static void render_triangle(
     ColorBuffer *color_buffer,
+    float *depth_buffer,
     FaceBufferItem *face,
     std::bitset<24> render_flags,
     Light *light,
@@ -80,18 +83,20 @@ static void render_triangle(
     base_color = render_flags[ENABLE_FACE_NORMALS] ?
                  normal_color : default_color;
 
-    base_color = apply_intensity(base_color, intensity);
+    base_color = apply_intensity(base_color, light_color, intensity * 2);
 
     // TODO: might be a good idea to move all vertex array conversion 
     // over here. I already done it in DISPLAY_VERTICES section
     if (render_flags[DISPLAY_TRIANGLES]) {
         draw_triangle(
             color_buffer, 
+            depth_buffer,
             face->vertices,
             face->texcoords,
             base_color,
             diffuse_texture,
-            intensity
+            intensity,
+            render_flags[ENABLE_Z_BUFFER_CHECK]
         );
     }
 
@@ -110,8 +115,7 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
     faces_to_render.clear();
 
     int depth_buffer_size = color_buffer->height * color_buffer->width;
-    float depth_buffer[depth_buffer_size];
-    std::fill_n(depth_buffer, depth_buffer_size, -10000);
+    std::fill_n(depth_buffer, depth_buffer_size, 1000);
 
     int half_width = color_buffer->width / 2;
     int half_height = color_buffer->height / 2;
@@ -160,7 +164,7 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
 
         // view -> projection step
         float aspect_ratio = (float)(color_buffer->height) / (float)(color_buffer->width);
-        Matrix4 projection = mat4_get_projection(aspect_ratio, DEG2RAD * camera_fov, -.1f, -100.f);
+        Matrix4 projection = mat4_get_projection(aspect_ratio, DEG2RAD * camera_fov, -.1f, -1000.f);
 
         for (int j = 0; j < 3; j++) {
             // This gives me image space or NDC
@@ -216,8 +220,14 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
 
 void MeshRendering::Program::render_mesh(ColorBuffer *color_buffer) {
     for (FaceBufferItem face : faces_to_render) {
-        // TODO: add pointer to a texture
-        render_triangle(color_buffer, &face, render_flags, &light, &mesh.diffuse_texture);
+        render_triangle(
+            color_buffer, 
+            depth_buffer,
+            &face,
+            render_flags,
+            &light,
+            &mesh.diffuse_texture
+        );
 
         // FIXME: Rendering for normals doesn't work
         // The reason for that is that I use projected vertices
@@ -227,23 +237,21 @@ void MeshRendering::Program::render_mesh(ColorBuffer *color_buffer) {
     }
 }
 
-void MeshRendering::Program::init() {
+void MeshRendering::Program::init(int width, int height) {
     char *bunny_obj_path = (char *)"assets/bunny-lr.obj";
     char *cube_obj_path = (char *)"assets/cube.obj";
-    // char *head_obj_path = (char *)"assets/head.obj";
-    char *head_obj_path = (char *)"assets/headscan.obj";
-    // char *head_obj_path = (char *)"assets/head-mod.obj";
+    char *mesh_obj_path = (char *)"assets/headscan.obj";
 
     render_flags.set(DISPLAY_TRIANGLES, 1);
     render_flags.set(BACKFACE_CULLING, 1);
-    render_flags.set(VERTEX_ORDERING, 1);
+    // render_flags.set(VERTEX_ORDERING, 1);
+    render_flags.set(ENABLE_Z_BUFFER_CHECK, 1);
     render_flags.set(ENABLE_SHADING, 1);
 
     std::vector<Vertex> vertices;
     std::vector<TinyFace> faces;
 
-    // parse_mesh(cube_obj_path, &vertices, &faces);
-    parse_mesh(head_obj_path, &vertices, &faces);
+    parse_mesh(mesh_obj_path, &vertices, &faces);
 
     mesh.vertices = (Vertex *)malloc(vertices.size() * sizeof(Vertex));
     mesh.faces = (TinyFace *)malloc(faces.size() * sizeof(TinyFace));
@@ -266,6 +274,8 @@ void MeshRendering::Program::init() {
     // mesh.diffuse_texture = LoadImage("assets/grid.png");
 
     light.direction = { 0.f, 1.f, -.5f };
+
+    depth_buffer = (float *)malloc(width * height * sizeof(float));
 }
 
 void MeshRendering::Program::run(ColorBuffer *color_buffer) {
@@ -275,7 +285,6 @@ void MeshRendering::Program::run(ColorBuffer *color_buffer) {
     float elapsed = GetTime();
 
     mesh.rotation.y = fmod((elapsed * ROTATION_SPEED), DEG2RAD * 360);
-    // mesh.rotation.z = fmod((elapsed * ROTATION_SPEED), DEG2RAD * 360);
 
     project_mesh(color_buffer);
     render_mesh(color_buffer);
@@ -293,6 +302,10 @@ void MeshRendering::Program::handle_input() {
     if (IsKeyPressed(KEY_S)) {
         render_flags.flip(ENABLE_SHADING);
         std::cout << "Enable shading: " << render_flags[ENABLE_SHADING] << "\n";
+    }
+    if (IsKeyPressed(KEY_D)) {
+        render_flags.flip(ENABLE_Z_BUFFER_CHECK);
+        std::cout << "Enable z-buffer check: " << render_flags[ENABLE_Z_BUFFER_CHECK] << "\n";
     }
     if (IsKeyPressed(KEY_Z)) {
         render_flags.flip(VERTEX_ORDERING);
@@ -319,6 +332,8 @@ void MeshRendering::Program::cleanup() {
     free(mesh.faces);
     mesh.vertices = nullptr; // Set the pointer to nullptr after freeing
     mesh.faces = nullptr; // Set the pointer to nullptr after freeing
+
+    free(depth_buffer);
 
     UnloadImage(mesh.diffuse_texture);
 }

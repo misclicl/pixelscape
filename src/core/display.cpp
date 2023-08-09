@@ -157,11 +157,13 @@ static void draw_triangle_pixel() {
 
 void draw_triangle(
     ColorBuffer *color_buffer,
+    float *depth_buffer,
     Vec4f vertices[3],
     Vec2f uv_coords[3],
     TinyColor face_color,
     Image *diffuse_texture,
-    float intensity
+    float intensity,
+    bool z_buffer_check
 ) {
     int screen_width = color_buffer->width;
     int screen_height = color_buffer->height;
@@ -195,6 +197,12 @@ void draw_triangle(
             barycentric_coords(v_screen, {p.x, p.y}, &alpha, &beta, &gamma);
 
             if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                w_inverse = apply_barycentric(
+                    w_inverse0,
+                    w_inverse1,
+                    w_inverse2,
+                    alpha, beta, gamma);
+
                 if (diffuse_texture != nullptr) {
                     // TODO: perspective adjustment
                     float z = 1;
@@ -211,12 +219,6 @@ void draw_triangle(
                         uv_coords[2].y / vertices[2].w,
                         alpha, beta, gamma);
 
-                    w_inverse = apply_barycentric(
-                        w_inverse0,
-                        w_inverse1,
-                        w_inverse2,
-                        alpha, beta, gamma);
-
                     u /= w_inverse;
                     v /= w_inverse;
 
@@ -226,10 +228,25 @@ void draw_triangle(
 
                     size_t uv_idx = (v * diffuse_texture->height) + u;
                     color = ColorToInt(GetPixelColor(data + uv_idx, diffuse_texture->format));
-                    color = apply_intensity(color, intensity);
+
+                    color = apply_intensity(color, {255, 255, 255, 255}, intensity);
                 }
 
+                int depth_buffer_idx = static_cast<int>(p.x + color_buffer->width * p.y);
+
+                if (w_inverse > depth_buffer[depth_buffer_idx] && z_buffer_check) {
+                    continue;
+                }
+
+                auto depth_buffer_color = tiny_color_from_rgb(
+                    -w_inverse * 255,
+                    -w_inverse * 255,
+                    -w_inverse * 255
+                );
+
+                depth_buffer[depth_buffer_idx] = w_inverse;
                 color_buffer->set_pixel(p.x, p.y, color);
+                // color_buffer->set_pixel(p.x, p.y, depth_buffer_color);
             }
         }
     }

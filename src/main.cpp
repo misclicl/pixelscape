@@ -47,8 +47,6 @@ int main(int argc, char **argv) {
     pixelscape::program::DrawRectangles draw_rectangles;
     pixelscape::program::Projection projection;
 
-    pixelscape::MeshRendering::Program mesh_rendering;
-    mesh_rendering.init();
 
     pixelscape::RenderWithShading::Program render_with_shading;
 
@@ -59,11 +57,15 @@ int main(int argc, char **argv) {
     color_buffer.pixels =
         (uint32_t *)malloc(target_render_size_x * target_render_size_y * sizeof(unsigned int));
 
+    pixelscape::MeshRendering::Program mesh_rendering;
+    mesh_rendering.init(color_buffer.width, color_buffer.height);
+
     while (!WindowShouldClose()) {
         BeginTextureMode(render_texture);
         ClearBackground(BLACK);
 
-        color_buffer.clear(0x000000FF);
+        // color_buffer.clear(0xa3a3a3ff);
+        color_buffer.clear(0x878787ff);
 
         // render_vertices(diffuse_img);
         // examples::shape_perspective();

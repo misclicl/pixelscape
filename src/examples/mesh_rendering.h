@@ -19,6 +19,7 @@ enum RenderingFlags {
     
     ENABLE_FACE_NORMALS,
     ENABLE_SHADING,
+    ENABLE_Z_BUFFER_CHECK,
 };
 
 struct FaceBufferItem {
@@ -31,7 +32,7 @@ struct FaceBufferItem {
 };
     
 struct Program {
-    void init();
+    void init(int width, int height);
     void run(ColorBuffer *color_buffer);
     void cleanup();
     void project_mesh(
@@ -46,6 +47,7 @@ struct Program {
     std::bitset<24> render_flags;
 
     std::vector<FaceBufferItem> faces_to_render;
+    float *depth_buffer;
 };
 } // namespace pixelscape::MeshRendering
 #endif

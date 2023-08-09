@@ -42,11 +42,13 @@ void draw_triangle_wireframe(
 
 void draw_triangle(
     ColorBuffer *color_buffer,
+    float *depth_buffer,
     Vec4f vertices[3],
     Vec2f texcoords[3],
     TinyColor face_color,
     Image *diffuse_texture,
-    float intensity
+    float intensity,
+    bool z_buffer_check
 );
 
 void draw_axis(ColorBuffer *color_buffer);
