@@ -372,7 +372,7 @@ void MeshRendering::Program::run(ColorBuffer *color_buffer) {
     float delta = GetFrameTime();
     float elapsed = GetTime();
 
-    mesh.rotation.y = fmod((elapsed * ROTATION_SPEED), DEG2RAD * 360);
+    // mesh.rotation.y = fmod((elapsed * ROTATION_SPEED), DEG2RAD * 360);
 
     Matrix4 mat_world = mat4_get_world(
         mesh.scale,
@@ -438,6 +438,13 @@ void MeshRendering::Program::handle_input() {
     if (IsKeyPressed(KEY_THREE)) {
         render_flags.flip(DISPLAY_TRIANGLES);
         std::cout << "Display triangles: " << render_flags[DISPLAY_TRIANGLES] << "\n";
+    }
+
+    if (IsKeyDown(KEY_RIGHT)) {
+        mesh.rotation.y += 0.05;
+    }
+    if (IsKeyDown(KEY_LEFT)) {
+        mesh.rotation.y -= 0.05;
     }
 }
     
