@@ -90,6 +90,15 @@ Vec2<T> &Vec2<T>::normalize() {
 template struct Vec2<float>;
 
 // SECTION: Vec4
+Vec4f vec4_from_vec3(Vec3f v, bool is_point) {
+    return {
+        .x = v.x,
+        .y = v.y,
+        .z = v.z,
+        .w = static_cast<float>(is_point)
+    };
+};
+
 Vec4f vec4_from_vec3(Vec3f v) {
     return {
         .x = v.x,

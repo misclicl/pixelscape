@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 #include "../core/color_buffer.h"
+#include "../core/matrix.h"
 #include "../mesh.h"
 #include "../light.h"
 
@@ -12,7 +13,6 @@ namespace pixelscape::MeshRendering {
 enum RenderingFlags {
     BACKFACE_CULLING,
     VERTEX_ORDERING,
-    DISPLAY_NORMALS,
     DISPLAY_VERTICES,
     DISPLAY_TRIANGLES,
     DISPLAY_WIREFRAME,
@@ -35,9 +35,11 @@ struct Program {
     void run(ColorBuffer *color_buffer);
     void cleanup();
     void project_mesh(
-        ColorBuffer *color_buffer
+        ColorBuffer *color_buffer,
+        Matrix4 *mat_world,
+        Matrix4 *mat_view
     );
-    void render_mesh(ColorBuffer *color_buffer);
+    void render_mesh(ColorBuffer *color_buffer, Light *light);
 
     void handle_input();
 

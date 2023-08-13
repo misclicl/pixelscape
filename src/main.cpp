@@ -1,3 +1,6 @@
+#define DOCTEST_CONFIG_IMPLEMENT
+#include <doctest/doctest.h>
+
 #include <array>
 #include <cstdio>
 #include <iostream>
@@ -30,6 +33,16 @@ const int target_render_size_x = window_width / 2;
 const int target_render_size_y = window_height / 2;
 
 int main(int argc, char **argv) {
+    doctest::Context context;
+    context.applyCommandLine(argc, argv);
+    int res = context.run();
+
+    if(context.shouldExit()) // important - query flags (and --exit) rely on the user doing this
+        return res;          // propagate the result of the tests
+    
+    int client_stuff_return_code = 0;
+
+
     InitWindow(window_width, window_height, "pixelscape");
     SetTargetFPS(60);
 
@@ -64,7 +77,6 @@ int main(int argc, char **argv) {
         BeginTextureMode(render_texture);
         ClearBackground(BLACK);
 
-        // color_buffer.clear(0xa3a3a3ff);
         color_buffer.clear(0x878787ff);
 
         // render_vertices(diffuse_img);
@@ -79,6 +91,7 @@ int main(int argc, char **argv) {
         pixelscape::draw_axis(&color_buffer);
 
         color_buffer.draw_to_texture();
+
 
         EndTextureMode();
 
@@ -106,5 +119,6 @@ int main(int argc, char **argv) {
     delete model;
     free(color_buffer.pixels);
 
-    return 0;
+    return res + client_stuff_return_code; // the result from doctest is propagated here as well
 }
+

@@ -20,10 +20,11 @@ Matrix4 mat4_get_rotation_x(float angle);
 Matrix4 mat4_get_rotation_y(float angle);
 Matrix4 mat4_get_rotation_z(float angle);
 Matrix4 mat4_get_rotation(float x, float y, float z);
+Matrix4 mat4_get_rotation_z(Vec3f from, Vec3f to, Vec3f up);
 
 Matrix4 mat4_get_world(Vec3f scale, Vec3f rotation, Vec3f translation);
-
 Matrix4 mat4_get_projection(float aspect_ratio, float fov, float z_near, float z_far);
+Matrix4 mat4_look_at(Vec3f from, Vec3f to, Vec3f up);
 
 Matrix4 mat4_add(Matrix4 *a, Matrix4 *b);
 Matrix4 mat4_substract(Matrix4 *a, Matrix4 *b);

@@ -1,5 +1,5 @@
-# Blender MTL File: 'None'
-# Material Count: 1
+# Blender 3.2.1 MTL File: 'headscan_main.blend'
+# www.blender.org
 
 newmtl defaultMat
 Ns 0.000000
@@ -10,4 +10,4 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.450000
 d 1.000000
 illum 1
-map_Kd Head.bmp
+map_Kd /Head.bmp

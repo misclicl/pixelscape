@@ -172,8 +172,7 @@ void draw_triangle(
 
     Vec2f p;
 
-    // Store interpolated values
-    float u, v;
+    float u, v; // Stores interpolated values
     float w_inverse; // Holds depth of a pixel
 
     float alpha, beta, gamma;
@@ -223,8 +222,8 @@ void draw_triangle(
                     v /= w_inverse;
 
                     // in-texture coords
-                    u = floor(u * diffuse_texture->width);
-                    v = floor(v * diffuse_texture->height);
+                    u = floor(u * (diffuse_texture->width - 1));
+                    v = floor(v * (diffuse_texture->height - 1));
 
                     size_t uv_idx = (v * diffuse_texture->height) + u;
                     color = ColorToInt(GetPixelColor(data + uv_idx, diffuse_texture->format));
@@ -234,7 +233,7 @@ void draw_triangle(
 
                 int depth_buffer_idx = static_cast<int>(p.x + color_buffer->width * p.y);
 
-                if (w_inverse > depth_buffer[depth_buffer_idx] && z_buffer_check) {
+                if (w_inverse < depth_buffer[depth_buffer_idx] && z_buffer_check) {
                     continue;
                 }
 
@@ -272,13 +271,27 @@ void draw_rectangle(
 }
 
 void draw_axis(ColorBuffer *color_buffer) {
+    /*
+     *      ^ y
+     *      |
+     *      +------------------+
+     *      |                  |
+     *      |                  |
+     *      |---+ (x, y)       |
+     *      |   |              |   x
+     *      +------------------+--->
+     */
+
     int unit = 16;
     float margin = 10.f;
 
     float axis_length = unit;
-    Vec3f origin = {(float)color_buffer->width - margin, margin, 1};
+    Vec3f origin = {
+        (float)color_buffer->width - margin - unit, 
+        margin, 
+        1};
 
     draw_line(color_buffer, origin.x, origin.y, origin.x, origin.y + axis_length, 0x00FF00FF);
-    draw_line(color_buffer, origin.x, origin.y, origin.x - axis_length, origin.y, 0xFF0000FF);
+    draw_line(color_buffer, origin.x, origin.y, origin.x + axis_length, origin.y, 0xFF0000FF);
 }
 } // namespace tinyrenderer

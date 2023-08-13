@@ -5,61 +5,115 @@
 #include <vector>
 
 #include "raylib.h"
+#include "raymath.h"
 
 #include "../core/display.h"
 #include "../core/tiny_color.h"
 #include "../core/tiny_math.h"
 #include "../core/matrix.h"
+#include "../core/camera.h"
 #include "../loader_obj.h"
 #include "../mesh.h"
 
 #include "mesh_rendering.h"
 
-#define ROTATION_SPEED 1.2f
+#define ROTATION_SPEED 0.2f
 #define FACE_BUFFER_SIZE_LIMIT 250000
 
 namespace pixelscape::MeshRendering {
 
-static Vec3f camera_position = {0, 0, 0};
 static float camera_fov = 45;
 static TinyColor default_color = 0xafafafff;
+static Color light_color = {200, 20, 180, 255};
 
-// FIXME: I need to project with matrix now
-static void draw_triangle_normal(
-    ColorBuffer *color_buffer, 
-    Vec3f *vertices, 
-    Vec3f *triangle_normal) {
-    //
-    // Vec3f normal_scaled = *triangle_normal * .1;
-    // Vec3f triangle_normal_start = vertices[0];
-    // Vec3f triangle_normal_end = vertices[0] + normal_scaled;
-    //
-    // int half_width = color_buffer->width / 2;
-    // int half_height = color_buffer->height / 2;
-    //
-    // Vec3f normal_end_projected = {
-    //     (fov_factor * triangle_normal_end.x / triangle_normal_end.z) + half_height,
-    //     (fov_factor * triangle_normal_end.y / triangle_normal_end.z) + half_height,
-    //     triangle_normal_end.z};
-    //
-    // Vec3f normal_start_projected = {
-    //     (fov_factor * triangle_normal_start.x / triangle_normal_start.z) + half_height,
-    //     (fov_factor * triangle_normal_start.y / triangle_normal_start.z) + half_height,
-    //     triangle_normal_start.z,
-    // };
-}
+static TinyCamera camera;
 
-static Vec3f get_triangle_normal(Vec3f *vertices) {
-    Vec3f a = vertices[0];
-    Vec3f b = vertices[1];
-    Vec3f c = vertices[2];
+static Vec3f get_triangle_normal(Vec4f a, Vec4f b, Vec4f c) {
+    Vec3f vec_ab = vec3_from_vec4(b - a);
+    Vec3f vec_ac = vec3_from_vec4(c - a);
 
-    Vec3f vec_ab = b - a;
-    Vec3f vec_ac = c - a;
     return Vec3f::cross(vec_ab, vec_ac).normalize();
 };
 
-static Color light_color = {200, 20, 180, 255};
+static Matrix4 mat_to_mat4(Matrix in) {
+    Matrix4 out = {};
+
+    out.m0 = in.m0;
+    out.m1 = in.m1;
+    out.m2 = in.m2;
+    out.m3 = in.m3;
+    out.m4 = in.m4;
+    out.m5 = in.m5;
+    out.m6 = in.m6;
+    out.m7 = in.m7;
+    out.m8 = in.m8;
+    out.m9 = in.m9;
+    out.m10 = in.m10;
+    out.m11 = in.m11;
+    out.m12 = in.m12;
+    out.m13 = in.m13;
+    out.m14 = in.m14;
+    out.m15 = in.m15;
+    return out;
+}
+
+static void draw_debug_quad(
+    ColorBuffer *color_buffer, 
+    Image *diffuse_texture, 
+    float *depth_buffer
+) {
+    Vec4f verts[3] = {
+        {0, 0, -5, 1},
+        {45, 45, -5, 1},
+        {0, 45, -5, 1}
+    };
+
+    Vec2f uvs[3] = {
+        {0, 1},
+        {1, 0},
+        {0, 0}
+    };
+
+    draw_triangle(
+        color_buffer,
+        depth_buffer,
+        verts,
+        uvs,
+        0x000000FF,
+        diffuse_texture,
+        1.0f,
+        true
+    );
+
+    verts[0] = {0, 0, -5, 1};
+    verts[1] = {45, 0, -5, 1};
+    verts[2] = {45, 45, -5, 1};
+    uvs[0] = {0, 1};
+    uvs[1] = {1, 1};
+    uvs[2] = {1, 0};
+
+    draw_triangle(
+        color_buffer,
+        depth_buffer,
+        verts,
+        uvs,
+        0x000000FF,
+        diffuse_texture,
+        1.0f,
+        true
+    );
+}
+
+static void draw_light_dir(ColorBuffer *color_buffer, Light *light) {
+    draw_line(
+        color_buffer, 
+        20, 220, 
+        20 + light->direction.x * 10, 220 + light->direction.y * 10, 
+        0xFFFFFFFF
+    );
+
+    color_buffer->set_pixel(20, 20, 0xF57716FF);
+}
 
 static void render_triangle(
     ColorBuffer *color_buffer,
@@ -69,7 +123,10 @@ static void render_triangle(
     Light *light,
     Image *diffuse_texture
 ) {
-    float alignment = std::max(-Vec3f::dot(light->direction.normalize(), face->triangle_normal), 0.f);
+    float alignment = -Vec3f::dot(light->direction.normalize(), face->triangle_normal);
+
+    alignment = std::max(alignment, 0.f);
+
     float intensity = render_flags[ENABLE_SHADING] ?
         alignment:
         1.f;
@@ -102,7 +159,7 @@ static void render_triangle(
     }
 
     if (render_flags[DISPLAY_WIREFRAME]) {
-        draw_triangle_wireframe(color_buffer, face->vertices, 0xFFAFAFAF);
+        draw_triangle_wireframe(color_buffer, face->vertices, 0xAAAAAB00);
     }
 
     if (render_flags[DISPLAY_VERTICES]) {
@@ -112,55 +169,72 @@ static void render_triangle(
     }
 }
 
-void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
+inline Vec4f transform_model_view(Vec3f in, Matrix4 *mat_world, Matrix4 *mat_view) {
+    Vec4f out = mat4_multiply_vec4(
+        mat_world, 
+        vec4_from_vec3(in)
+    );
+
+    out = mat4_multiply_vec4(
+        mat_view,
+        out
+    );
+
+    return out;
+};
+
+
+void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
     face_buffer_size = 0;
 
     int depth_buffer_size = color_buffer->height * color_buffer->width;
-    std::fill_n(depth_buffer, depth_buffer_size, 1000);
+    std::fill_n(depth_buffer, depth_buffer_size, -10000);
 
     int half_width = color_buffer->width / 2;
     int half_height = color_buffer->height / 2;
+    float aspect_ratio = (float)(color_buffer->height) / (float)(color_buffer->width);
 
-    Vec3f v_view[3];
+    Vec4f v_view[3];
     Vec4f v_camera[3];
+    // TODO: For debug purposes
+    Vec3f initial[3];
 
-    Matrix4 mat_world = mat4_get_world(
-        mesh.scale,
-        mesh.rotation,
-        mesh.translation
-    );
-    
     for (int i = 0; i < mesh.face_count; i++) {
         TinyFace *face = &(mesh.faces[i]);
 
+        // model -> view
         for (int j = 0; j < 3; j++) {
-            Vec4f v_world = mat4_multiply_vec4(
-                &mat_world, 
-                vec4_from_vec3(mesh.vertices[face->indices[j]].position)
-            );
-
-            // FIXME: No need to transform for now as the camera is located in the origin
-            v_view[j] = {v_world.x, v_world.y, v_world.z};
+            initial[j] = mesh.vertices[face->indices[j]].position;
+            v_view[j] = transform_model_view(mesh.vertices[face->indices[j]].position, mat_world, mat_view);
         }
 
-        Vec3f triangle_normal = get_triangle_normal(v_view);
+        // SECTION: backface culling
+        Vec3f triangle_normal = get_triangle_normal(
+            v_view[0],
+            v_view[1],
+            v_view[2]
+        );
 
         if (render_flags[BACKFACE_CULLING]) {
-            Vec3f camera_ray = camera_position - v_view[0];
+            auto a = vec3_from_vec4(v_view[0]);
+            auto origin = Vec3f {0.0f, 0.0f, 0.0f};
+
+            Vec3f camera_ray = origin - a;
+
             float dot_normal_cam = Vec3f::dot(camera_ray, triangle_normal);
 
-            if (dot_normal_cam < 0.f && render_flags[BACKFACE_CULLING]) {
+            if (dot_normal_cam < 0.f) {
                 continue;
             }
         }
-
-        // view -> projection step
-        float aspect_ratio = (float)(color_buffer->height) / (float)(color_buffer->width);
-        Matrix4 projection = mat4_get_projection(aspect_ratio, DEG2RAD * camera_fov, -.1f, -1000.f);
+        // SECTION_END
+        // TODO: Check if my matrix works
+        auto pr = MatrixPerspective(DEG2RAD * camera_fov, aspect_ratio, -.1f, -1000.f);
+        Matrix4 projection = mat_to_mat4(pr);
 
         for (int j = 0; j < 3; j++) {
             // This gives me image space or NDC
-            Vec4f v_projected = mat4_multiply_projection_vec4(projection, vec4_from_vec3(v_view[j]));
+            Vec4f v_projected = mat4_multiply_projection_vec4(projection, v_view[j]);
         
             v_camera[j] = {
                 (v_projected.x * half_width) + half_width,
@@ -170,7 +244,7 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
             };
         }
 
-        // Write transformed to buffer
+        // Write transformed vertices to the buffer
         FaceBufferItem f = {
             .vertices = {
                 { v_camera[0].x, v_camera[0].y, v_camera[0].z, v_camera[0].w},
@@ -198,33 +272,47 @@ void MeshRendering::Program::project_mesh( ColorBuffer *color_buffer ) {
     }
 }
 
-void MeshRendering::Program::render_mesh(ColorBuffer *color_buffer) {
+void MeshRendering::Program::render_mesh(ColorBuffer *color_buffer, Light *light) {
     for (int i = 0; i < face_buffer_size; i++) {
         render_triangle(
             color_buffer, 
             depth_buffer,
             &face_buffer[i],
             render_flags,
-            &light,
+            light,
             &mesh.diffuse_texture
         );
-
-        // FIXME: Rendering for normals doesn't work
-        // The reason for that is that I use projected vertices
-        // if (render_flags[DISPLAY_NORMALS]) {
-        //     draw_triangle_normal(color_buffer, face.vertices, &face.triangle_normal);
-        // }
     }
 }
 
+void static render_normals(
+    ColorBuffer *color_buffer, 
+    FaceBufferItem *face_buffer, 
+    size_t face_buffer_size
+) {
+    for (int i = 0; i < face_buffer_size; i++) {
+        auto face = &face_buffer[i];
+
+        draw_line(
+            color_buffer,
+            face->vertices[0].x, face->vertices[0].y,
+            face->vertices[0].x - face->triangle_normal.x * 5, 
+            face->vertices[0].y - face->triangle_normal.y * 5,
+            0xffafb0FF 
+        );
+    }
+}
+
+
 void MeshRendering::Program::init(int width, int height) {
-    char *bunny_obj_path = (char *)"assets/bunny-lr.obj";
     char *cube_obj_path = (char *)"assets/cube.obj";
     char *mesh_obj_path = (char *)"assets/headscan.obj";
+    char *susan_obj_path = (char *)"assets/susan.obj";
+    char *test_obj_path = (char *)"assets/test.obj";
 
     render_flags.set(DISPLAY_TRIANGLES, 1);
+    render_flags.set(DISPLAY_WIREFRAME, 0);
     render_flags.set(BACKFACE_CULLING, 1);
-    // render_flags.set(VERTEX_ORDERING, 1);
     render_flags.set(ENABLE_Z_BUFFER_CHECK, 1);
     render_flags.set(ENABLE_SHADING, 1);
 
@@ -232,6 +320,7 @@ void MeshRendering::Program::init(int width, int height) {
     std::vector<TinyFace> faces;
 
     parse_mesh(mesh_obj_path, &vertices, &faces);
+    // parse_mesh(test_obj_path, &vertices, &faces);
 
     mesh.vertices = (Vertex *)malloc(vertices.size() * sizeof(Vertex));
     mesh.faces = (TinyFace *)malloc(faces.size() * sizeof(TinyFace));
@@ -249,11 +338,16 @@ void MeshRendering::Program::init(int width, int height) {
     mesh.vertex_count = vertices.size();
     mesh.scale = { 1.0f, 1.0f, 1.0f };
     mesh.translation = { 0.f, 0.f, -5.f };
-    mesh.rotation.x = -DEG2RAD * 10;
-    mesh.diffuse_texture = LoadImage("assets/headscan-128.png");
+
+    mesh.diffuse_texture = LoadImage("assets/headscan-256.png");
     // mesh.diffuse_texture = LoadImage("assets/grid.png");
 
-    light.direction = { 0.f, 1.f, -.5f };
+    camera = {
+        .position  = {0.0f, 1.0f, -1.0f},
+        .direction = {0.0f, 0.0f, -5.0f}
+    };
+    light.direction = { 1.0f, -1.0f, -1.0f };
+
 
     depth_buffer = (float *)malloc(width * height * sizeof(float));
     face_buffer = (FaceBufferItem *)malloc(FACE_BUFFER_SIZE_LIMIT * sizeof(FaceBufferItem));
@@ -267,8 +361,35 @@ void MeshRendering::Program::run(ColorBuffer *color_buffer) {
 
     mesh.rotation.y = fmod((elapsed * ROTATION_SPEED), DEG2RAD * 360);
 
-    project_mesh(color_buffer);
-    render_mesh(color_buffer);
+    Matrix4 mat_world = mat4_get_world(
+        mesh.scale,
+        mesh.rotation,
+        mesh.translation
+    );
+
+    Matrix4 mat_view = mat4_look_at(
+        camera.position,
+        camera.direction,
+        {0.0f, 1.0f, 0.0f}
+    );
+  
+    project_mesh(color_buffer, &mat_world, &mat_view);
+
+    Vec4f light_direction_projected = mat4_multiply_vec4(
+        &mat_view,
+        vec4_from_vec3(light.direction, false)
+    );
+
+    Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
+
+    draw_light_dir(color_buffer, &light_pr);
+    draw_debug_quad(color_buffer, &mesh.diffuse_texture, depth_buffer);
+
+    render_mesh(color_buffer, &light_pr);
+
+    if (render_flags[ENABLE_FACE_NORMALS]) {
+        render_normals(color_buffer, face_buffer, face_buffer_size);
+    }
 }
 
 void MeshRendering::Program::handle_input() {
@@ -321,4 +442,3 @@ void MeshRendering::Program::cleanup() {
 }
 
 } // namespace pixelscape::MeshRendering
-

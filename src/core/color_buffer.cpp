@@ -43,8 +43,6 @@ void ColorBuffer::clear(uint32_t color) {
 }
 
 void ColorBuffer::draw_to_texture() {
-    // TODO: find out if it's possible to write content
-    // of color_buffer as a whole
     for (size_t i = 0; i < width * height; ++i) {
         // Retrieve buffer color
         uint32_t *pixel = get_buffer_pixel(i);

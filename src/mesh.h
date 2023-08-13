@@ -15,7 +15,6 @@ struct TinyFace {
     int indices[3] = {};
 
     TinyColor color;
-    float avg_depth = 0;
 };
 
 extern Vec3f cube_vertices[CUBE_VERTICES_COUNT];

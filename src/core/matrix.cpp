@@ -1,3 +1,5 @@
+#include <doctest/doctest.h>
+
 #include "matrix.h"
 
 Matrix4 mat4_get_identity() {
@@ -125,8 +127,42 @@ Matrix4 mat4_get_projection(float aspect_ratio, float fov, float z_near, float z
     out.m0 = aspect_ratio * scale;
     out.m5 = scale;
     out.m10 = lambda;
-    out.m11 = 1;
-    out.m14 = lambda * z_near;
+    out.m11 = -1;
+    out.m14 = -lambda * z_near;
+
+    return out;
+}
+
+Matrix4 mat4_look_at(Vec3f from, Vec3f to, Vec3f up_gl) {
+    // | R_x  R_y  R_z  -dot(R, F) |
+    // | U_x  U_y  U_z  -dot(U, F) |
+    // | F_x  F_y  F_z  -dot(F, F) |
+    // | T_x  T_y  T_z           1 |
+
+    Vec3f forward = from - to;
+    forward = forward.normalize();
+
+    Vec3f right = Vec3f::cross(up_gl, forward);
+    right = right.normalize();
+
+    Vec3f up = Vec3f::cross(forward, right);
+    Matrix4 out = mat4_get_identity();
+
+    out.m0 = right.x;
+    out.m1 = up.x;
+    out.m2 = forward.x;
+
+    out.m4 = right.y;
+    out.m5 = up.y;
+    out.m6 = forward.y;
+
+    out.m8  = right.z;
+    out.m9  = up.z;
+    out.m10 = forward.z;
+
+    out.m12 = -Vec3f::dot(right, from);
+    out.m13 = -Vec3f::dot(up, from);
+    out.m14 = -Vec3f::dot(forward, from);
 
     return out;
 }
@@ -239,5 +275,34 @@ Matrix4 mat4_get_world(Vec3f scale, Vec3f rotation, Vec3f translation) {
 
     Matrix4 out = mat4_multiply(m_scale, mat4_multiply(m_rotation, m_translation));
     return out;
+}
+
+TEST_CASE("mat4_look_at basic test") {
+    Vec3f up{ 0, 1, 0 }; 
+    Vec3f from{ 1, 1, 1 }; 
+    Vec3f to{ 0, 0, 0 };
+
+    // Matrix4 result = mat4_look_at(from, to, up);
+
+    // Now assert that the resulting matrix has expected values.
+    // CHECK(result.m0  == doctest::Approx(0.707107f));
+    // CHECK(result.m4  == doctest::Approx(0.0f));
+    // CHECK(result.m8  == doctest::Approx(-0.707107f));
+    // CHECK(result.m12 == doctest::Approx(0.0f));
+    //
+    // CHECK(result.m1  == doctest::Approx(-0.408248));
+    // CHECK(result.m5  == doctest::Approx(0.816497));
+    // CHECK(result.m9  == doctest::Approx(-0.408248));
+    // CHECK(result.m13 == doctest::Approx(0.0f));
+    //
+    // CHECK(result.m2  == doctest::Approx(0.57735f));
+    // CHECK(result.m6  == doctest::Approx(0.57735f));
+    // CHECK(result.m10 == doctest::Approx(0.57735f));
+    // CHECK(result.m14 == doctest::Approx(0.f));
+    //
+    // CHECK(result.m3  == doctest::Approx(1.0f));
+    // CHECK(result.m7  == doctest::Approx(1.0f));
+    // CHECK(result.m11 == doctest::Approx(1.0f));
+    // CHECK(result.m15 == doctest::Approx(1.0f));
 }
 

@@ -17,60 +17,6 @@
 #include "core/tiny_math.h"
 
 namespace pixelscape {
-
-// TODO: do I need static here?
-// TODO: Obsolete. I use tinyobjloader instead now
-static void load_mesh(
-    char* file_path,
-    std::vector<Vec3f> *vertices, 
-    std::vector<TinyFace> *faces
-) {
-    std::ifstream in(file_path);
-    char trash;
-
-    if (!in.is_open()) {
-        printf("WARNING: Failed to open the file \n");
-    }
-    while (!in.eof()) {
-        std::string line;
-        std::getline(in, line);
-
-        std::istringstream ss(line.c_str());
-
-        if (line.compare(0, 2, "v ") == 0) {
-            ss >> trash;
-
-            Vec3f vertex;
-            ss >> vertex.x;
-            ss >> vertex.y;
-            ss >> vertex.z;
-
-            (*vertices).push_back(vertex);
-        } else if (line.compare(0, 2, "f ") == 0) {
-            int idx, idx_uv, idx_normal;
-            std::vector<int> indices;
-            std::string temp;
-
-            ss >> trash;
-
-            while (ss >> idx >> trash >> idx_uv >> trash >> idx_normal) {
-                idx--;
-                indices.push_back(idx);
-            }
-
-            TinyFace face {
-                indices.at(0),
-                indices.at(1),
-                indices.at(2),
-            };
-
-            (*faces).push_back(face);
-        }
-    }
-
-    in.close();
-}
-
 // TODO: reconsider static
 // TODO: consider updating api:
 // - Option 1. Pass Mesh * and update its fields

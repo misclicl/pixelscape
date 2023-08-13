@@ -65,13 +65,18 @@ typedef Vec3<float> Vec3f;
 struct Vec4f {
     float x, y, z, w;
 
+    float length();
     Vec4f operator+(Vec4f &v) { return {x + v.x, y + v.y, z + v.z, w + v.w}; }
     Vec4f operator-(Vec4f &v) { return {x - v.x, y - v.y, z - v.z, w - v.w}; }
     Vec4f operator-() { return {- x, -y, -z, -w}; }
     Vec4f operator*(float r) { return {x * r, y * r, z * r, w * r}; }
+    bool operator==(Vec4f v) { return x == v.x && y == v.y && z == v.y && w == v.w; }
+
+    Vec4f &normalize();
 };
 
 Vec4f vec4_from_vec3(Vec3f v);
+Vec4f vec4_from_vec3(Vec3f v, bool is_point);
 Vec3f vec3_from_vec4(Vec4f v);
 
 #endif
