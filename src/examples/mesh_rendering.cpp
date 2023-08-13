@@ -288,17 +288,30 @@ void MeshRendering::Program::render_mesh(ColorBuffer *color_buffer, Light *light
 void static render_normals(
     ColorBuffer *color_buffer, 
     FaceBufferItem *face_buffer, 
+    float *depth_buffer,
     size_t face_buffer_size
 ) {
+
+
     for (int i = 0; i < face_buffer_size; i++) {
         auto face = &face_buffer[i];
+        int depth_buffer_idx = static_cast<int>(face->vertices[0].x + color_buffer->width * face->vertices[0].y);
+
+        if (face->vertices[0].w < depth_buffer[depth_buffer_idx]) {
+            continue;
+        }
+        auto color = tiny_color_from_rgb(
+            (1 + face->triangle_normal.x) * 128,
+            (1 + face->triangle_normal.y) * 128,
+            (1 + face->triangle_normal.z) * 128
+        );
 
         draw_line(
             color_buffer,
             face->vertices[0].x, face->vertices[0].y,
-            face->vertices[0].x - face->triangle_normal.x * 5, 
-            face->vertices[0].y - face->triangle_normal.y * 5,
-            0xffafb0FF 
+            face->vertices[0].x + face->triangle_normal.x * 5, 
+            face->vertices[0].y + face->triangle_normal.y * 5,
+            color
         );
     }
 }
@@ -388,7 +401,7 @@ void MeshRendering::Program::run(ColorBuffer *color_buffer) {
     render_mesh(color_buffer, &light_pr);
 
     if (render_flags[ENABLE_FACE_NORMALS]) {
-        render_normals(color_buffer, face_buffer, face_buffer_size);
+        render_normals(color_buffer, face_buffer, depth_buffer, face_buffer_size);
     }
 }
 
