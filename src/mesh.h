@@ -8,8 +8,6 @@
 #define CUBE_VERTICES_COUNT 8
 #define CUBE_FACES_COUNT 12
 
-namespace pixelscape {
-
 // Stores indices
 struct TinyFace {
     int indices[3] = {};
@@ -17,23 +15,27 @@ struct TinyFace {
     TinyColor color;
 };
 
+struct TinyTriangle {
+    Vec3f points[3];
+};
+
 extern Vec3f cube_vertices[CUBE_VERTICES_COUNT];
 extern TinyFace cube_faces[CUBE_FACES_COUNT];
 
 // Stores values
-struct Vertex {
+struct TinyVertex {
     Vec3f position = {};
     Vec3f normals = {};
     Vec2f texcoords = {};
 
-    bool operator==(Vertex other) const {
+    bool operator==(TinyVertex other) const {
         return position == (other.position) &&
                texcoords == other.texcoords;
     }
 };
 
-struct Mesh {
-    Vertex *vertices;
+struct TinyMesh {
+    TinyVertex *vertices;
     TinyFace *faces;
 
     int face_count = 0;
@@ -45,7 +47,5 @@ struct Mesh {
 
     Image diffuse_texture;
 };
-
-} // namespace pixelscape
 
 #endif

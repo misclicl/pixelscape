@@ -16,14 +16,13 @@
 #include "mesh.h"
 #include "core/tiny_math.h"
 
-namespace pixelscape {
 // TODO: reconsider static
 // TODO: consider updating api:
 // - Option 1. Pass Mesh * and update its fields
 // - Option 2. Use index/vertex buffers instead of this
 static void parse_mesh(
-    char *filepath, 
-    std::vector<Vertex> *vertices,
+    char *filepath,
+    std::vector<TinyVertex> *vertices,
     std::vector<TinyFace> *faces
 ) {
     tinyobj::attrib_t attrib;
@@ -45,7 +44,7 @@ static void parse_mesh(
         for (size_t j = 0; j < shape->mesh.indices.size(); j++) {
             auto& face = shape->mesh.indices[j]; // stores info from 'f a/b/c ...'
 
-            Vertex vertex = {};
+            TinyVertex vertex = {};
 
             vertex.position = {
                 attrib.vertices[3 * face.vertex_index + 0],
@@ -59,7 +58,7 @@ static void parse_mesh(
                 1.0f - attrib.texcoords[2 * face.texcoord_index + 1]
             };
 
-            std::string key = std::to_string(face.vertex_index) + 
+            std::string key = std::to_string(face.vertex_index) +
                 std::to_string(face.texcoord_index);
 
             if (unique_vertices.count(key) == 0) {
@@ -89,6 +88,5 @@ static void parse_mesh(
 
         faces->push_back(face);
     }
-}
 }
 #endif

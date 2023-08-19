@@ -4,10 +4,7 @@
 #include "../core/color_buffer.h"
 #include <stdint.h>
 
-namespace pixelscape::program {
-
 struct Projection {
     void run(ColorBuffer *color_buffer, int delta);
 };
-} // namespace pixelscape::program
 #endif

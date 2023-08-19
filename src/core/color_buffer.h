@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 
-namespace pixelscape {
 struct ColorBuffer {
     int width;
     int height;
@@ -19,5 +18,4 @@ private:
     uint32_t *get_buffer_pixel(int x, int y);
     uint32_t *get_buffer_pixel(int idx);
 };
-}; // namespace pixelscape
 #endif

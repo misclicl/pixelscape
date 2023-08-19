@@ -17,7 +17,7 @@ T Vec3<T>::dot(Vec3<T> &v) {
 }
 
 template <typename T>
-T Vec3<T>::dot(Vec3<T> &a, Vec3<T> &b) {
+T Vec3<T>::dot(Vec3<T> a, Vec3<T> b) {
     return a.x * b.x + a.y * b.y + a.z * b.z;
 }
 

@@ -5,7 +5,6 @@
 #include "color_buffer.h"
 #include "tiny_color.h"
 
-namespace pixelscape {
 uint32_t *ColorBuffer::get_buffer_pixel(int x, int y) {
     if (x < 0 || x >= width || y < 0 || y >= height) {
         return nullptr;
@@ -55,5 +54,3 @@ void ColorBuffer::draw_to_texture() {
         DrawPixel(x, y, color);
     }
 };
-}
-

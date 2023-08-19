@@ -9,8 +9,6 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
-namespace pixelscape {
-
 void draw_line(
     ColorBuffer *color_buffer,
     float x0, float y0,
@@ -179,10 +177,10 @@ void draw_triangle(
     TinyColor color = 0xffffffff;
     Color *data = (Color *)diffuse_texture->data;
 
-    Vec2f v_screen[3] = { 
+    Vec2f v_screen[3] = {
         {(vertices[0].x), (vertices[0].y)},
         {(vertices[1].x), (vertices[1].y)},
-        {(vertices[2].x), (vertices[2].y)} 
+        {(vertices[2].x), (vertices[2].y)}
     };
 
     triangle_bb(v_screen, boundaries, screen_width, screen_height);
@@ -287,11 +285,10 @@ void draw_axis(ColorBuffer *color_buffer) {
 
     float axis_length = unit;
     Vec3f origin = {
-        (float)color_buffer->width - margin - unit, 
-        margin, 
+        (float)color_buffer->width - margin - unit,
+        margin,
         1};
 
     draw_line(color_buffer, origin.x, origin.y, origin.x, origin.y + axis_length, 0x00FF00FF);
     draw_line(color_buffer, origin.x, origin.y, origin.x + axis_length, origin.y, 0xFF0000FF);
 }
-} // namespace tinyrenderer

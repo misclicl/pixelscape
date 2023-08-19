@@ -7,7 +7,6 @@
 
 #include <cstdint>
 
-namespace pixelscape {
 typedef uint32_t TinyColor;
 
 static int min(int a, int b) {
@@ -64,8 +63,5 @@ static TinyColor add_colors(TinyColor color_a, TinyColor color_b) {
 
     return (r << 24) | (g << 16) | (b << 8) | a;
 }
-
-} // namespace pixelscape
-
 
 #endif

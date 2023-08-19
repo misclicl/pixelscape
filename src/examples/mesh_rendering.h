@@ -9,14 +9,13 @@
 #include "../mesh.h"
 #include "../light.h"
 
-namespace pixelscape::MeshRendering {
 enum RenderingFlags {
     BACKFACE_CULLING,
     VERTEX_ORDERING,
     DISPLAY_VERTICES,
     DISPLAY_TRIANGLES,
     DISPLAY_WIREFRAME,
-    
+
     ENABLE_FACE_NORMALS,
     ENABLE_SHADING,
     ENABLE_Z_BUFFER_CHECK,
@@ -29,7 +28,7 @@ struct FaceBufferItem {
 
     TinyColor color;
 };
-    
+
 struct Program {
     void init(int width, int height);
     void run(ColorBuffer *color_buffer);
@@ -41,10 +40,10 @@ struct Program {
     );
     void render_mesh(ColorBuffer *color_buffer, Light *light);
 
-    void handle_input();
+    void handle_input(float delta_time);
 
     Light light;
-    Mesh mesh;
+    TinyMesh mesh;
     std::bitset<24> render_flags;
 
     FaceBufferItem *face_buffer;
@@ -52,5 +51,5 @@ struct Program {
 
     float *depth_buffer;
 };
-} // namespace pixelscape::MeshRendering
+
 #endif

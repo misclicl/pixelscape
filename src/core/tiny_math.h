@@ -54,7 +54,8 @@ struct Vec3 {
     static Vec3<T> rotate_x(Vec3<T> *v, float angle);
     static Vec3<T> rotate_z(Vec3<T> *v, float angle);
     static Vec3<T> cross(Vec3<T> &a, Vec3<T> &b);
-    static T dot(Vec3<T> &a, Vec3<T> &b);
+    // static T dot(Vec3<T> &a, Vec3<T> &b);
+    static T dot(Vec3<T> a, Vec3<T> b);
 };
 
 typedef Vec3<float> Vec3f;

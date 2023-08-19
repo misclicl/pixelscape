@@ -3,7 +3,7 @@
 #include "../core/display.h"
 #include "draw_rectangles.h"
 
-void pixelscape::program::DrawRectangles::run(
+void DrawRectangles::run(
     ColorBuffer *color_buffer) {
     draw_rectangle(
         color_buffer,

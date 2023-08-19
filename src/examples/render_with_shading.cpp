@@ -3,9 +3,7 @@
 #include "raymath.h"
 #include "../core/display.h"
 
-namespace pixelscape::RenderWithShading {
-
-void Program::init() {
+void ProgramShading::init() {
     // Initialization code goes here
     // For instance, you may initialize shaders, load texture data, etc.
 }
@@ -15,9 +13,9 @@ const float near_clipping_plane = .1;
 
 Vec3f rotation = {};
 
-void Program::run(
-    ColorBuffer *color_buffer, 
-    Model *model,
+void ProgramShading::run(
+    ColorBuffer *color_buffer,
+    TinyModel *model,
     Vector3 &light_dir,
     Image diffuse_texture
 ) {
@@ -32,7 +30,7 @@ void Program::run(
 //     float delta = GetFrameTime();
 //     rotation.y += delta;
 //     float angle = rotation.y;
-//     
+//
 //     Matrix rotation = MatrixRotateY(angle);
 //     Matrix scale = MatrixScale(1.f, 1.f, 1.f);
 //     Matrix model_to_world = MatrixMultiply(scale, rotation);
@@ -59,7 +57,7 @@ void Program::run(
 //
 //             vertices[j].x = (world_coords[j].x + 1.) * (half_width);
 //             vertices[j].y = (world_coords[j].y + 1.) * (half_height);
-//             vertices[j].z = world_coords[j].z; 
+//             vertices[j].z = world_coords[j].z;
 //         }
 //
 //         Vector3 triangle_normal = Vector3Normalize(
@@ -83,10 +81,7 @@ void Program::run(
 //     delete[] depth_buffer;
 }
 
-void Program::cleanup() {
+void ProgramShading::cleanup() {
     // Code for cleanup after the program has done its work.
     // Typically you would deallocate any resources you allocated in init()
 }
-
-} // namespace pixelscape::RenderWithShading
-

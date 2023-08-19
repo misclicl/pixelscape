@@ -5,9 +5,7 @@
 
 #include "../core/color_buffer.h"
 
-namespace pixelscape::program {
 struct DrawRectangles {
     void run(ColorBuffer *colorBuffer);
 };
-} // namespace pixelscape::program
 #endif

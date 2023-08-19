@@ -7,17 +7,15 @@
 #include "../core/color_buffer.h"
 #include "../model.h"
 
-namespace pixelscape::RenderWithShading {
-struct Program {
+struct ProgramShading {
     void init();
     void run(
-        ColorBuffer *color_buffer, 
-        Model *model,
+        ColorBuffer *color_buffer,
+        TinyModel *model,
         Vector3 &light_dir,
         Image diffuse_texture
     );
     void cleanup();
 };
-} // namespace pixelscape::RenderWithShading
 #endif
 

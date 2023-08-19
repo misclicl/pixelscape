@@ -6,7 +6,6 @@
 #include "projection.h"
 #include "raylib.h"
 
-namespace pixelscape {
 Vec3f camera_position = {0, 0, 2};
 float fov_factor = 70;
 
@@ -64,7 +63,7 @@ void perspective(ColorBuffer *color_buffer, Vec3f *vertices, size_t size, int de
     };
 }
 
-void program::Projection::run(ColorBuffer *color_buffer, int delta) {
+void Projection::run(ColorBuffer *color_buffer, int delta) {
     float inc = .2;
     // five element > 0, 5 < 0, 1 element == 0
     int size = 11;
@@ -91,4 +90,3 @@ void program::Projection::run(ColorBuffer *color_buffer, int delta) {
     perspective(color_buffer, vertices, size * size * size, delta);
     free(vertices);
 }
-} // namespace pixelscape

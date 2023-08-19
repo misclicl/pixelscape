@@ -1,7 +1,5 @@
 #include "mesh.h"
 
-namespace pixelscape {
-
 /*
  *                                  |
  *                                  |/
@@ -49,5 +47,5 @@ TinyFace cube_faces[CUBE_FACES_COUNT] = {
     {0, 7, 4},
     // right
     {2, 1, 5},
-    {2, 5, 6}};
-} // namespace pixelscape
+    {2, 5, 6}
+};

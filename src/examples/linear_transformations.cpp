@@ -6,8 +6,6 @@
 
 #include "../core/display.h"
 
-namespace pixelscape {
-
 float cube_halfsize = 50;
 // FIXME: put somewhere else. it's in global space
 Vector3 vertx[8] = {
@@ -28,7 +26,7 @@ void linear_transformations(ColorBuffer *color_buffer) {
     }
     // draw_triangles(
     //     color_buffer,
-    //     v_out, 
+    //     v_out,
     //     indices,
     //     0xFFFFFFFF
     // );
@@ -47,7 +45,7 @@ void linear_transformations(ColorBuffer *color_buffer) {
     }
     // pixelscape::draw_triangles(
     //     color_buffer,
-    //     v_out, 
+    //     v_out,
     //     indices,
     //     0xFF0000FF
     // );
@@ -59,7 +57,7 @@ void linear_transformations(ColorBuffer *color_buffer) {
     }
     // pixelscape::draw_triangles(
     //     color_buffer,
-    //     v_out, 
+    //     v_out,
     //     indices,
     //     0x00FF00FF
     // );
@@ -76,6 +74,5 @@ void linear_transformations(ColorBuffer *color_buffer) {
     //     indices,
     //     0x0000FFFF
     // );
-}
 }
 

@@ -4,7 +4,6 @@
 #include "../core/display.h"
 #include "background_grid.h"
 
-namespace pixelscape {
 void draw_grid(ColorBuffer *color_buffer, uint32_t color) {
     int n = 32;
 
@@ -26,8 +25,7 @@ void draw_grid(ColorBuffer *color_buffer, uint32_t color) {
     }
 }
 
-void program::BackgroundGrid::run(
-    pixelscape::ColorBuffer *color_buffer) {
+void BackgroundGrid::run(
+    ColorBuffer *color_buffer) {
     draw_grid(color_buffer, 0x101010FF);
 };
-} // namespace pixelscape

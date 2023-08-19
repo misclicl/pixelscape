@@ -26,8 +26,8 @@
 #define global_variable static;
 #define internal static;
 
-const int window_width = 512;
-const int window_height = 512;
+const int window_width = 640;
+const int window_height = 480;
 
 const int target_render_size_x = window_width / 2;
 const int target_render_size_y = window_height / 2;
@@ -39,14 +39,14 @@ int main(int argc, char **argv) {
 
     if(context.shouldExit()) // important - query flags (and --exit) rely on the user doing this
         return res;          // propagate the result of the tests
-    
+
     int client_stuff_return_code = 0;
 
 
     InitWindow(window_width, window_height, "pixelscape");
     SetTargetFPS(60);
 
-    pixelscape::Model *model = new pixelscape::Model("assets/head.obj");
+    TinyModel *model = new TinyModel("assets/head.obj");
 
     // Image diffuse_img = LoadImage("assets/diffuse.png");
     Image diffuse_img = LoadImage("assets/grid.png");
@@ -56,21 +56,21 @@ int main(int argc, char **argv) {
     RenderTexture2D render_texture = LoadRenderTexture(target_render_size_x, target_render_size_y);
 
 
-    pixelscape::program::BackgroundGrid bg_grid;
-    pixelscape::program::DrawRectangles draw_rectangles;
-    pixelscape::program::Projection projection;
+    BackgroundGrid bg_grid;
+    DrawRectangles draw_rectangles;
+    Projection projection;
 
 
-    pixelscape::RenderWithShading::Program render_with_shading;
+    ProgramShading render_with_shading;
 
 
-    pixelscape::ColorBuffer color_buffer;
+    ColorBuffer color_buffer;
     color_buffer.width = target_render_size_x;
     color_buffer.height = target_render_size_y;
     color_buffer.pixels =
         (uint32_t *)malloc(target_render_size_x * target_render_size_y * sizeof(unsigned int));
 
-    pixelscape::MeshRendering::Program mesh_rendering;
+    Program mesh_rendering;
     mesh_rendering.init(color_buffer.width, color_buffer.height);
 
     while (!WindowShouldClose()) {
@@ -88,7 +88,7 @@ int main(int argc, char **argv) {
 
         // render_with_shading.run(&color_buffer, model, light_dir, diffuse_img);
         mesh_rendering.run(&color_buffer);
-        pixelscape::draw_axis(&color_buffer);
+        draw_axis(&color_buffer);
 
         color_buffer.draw_to_texture();
 

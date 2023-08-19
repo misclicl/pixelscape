@@ -3,9 +3,7 @@
 
 #include "../core/color_buffer.h"
 
-namespace pixelscape {
-    void linear_transformations(ColorBuffer *color_buffer);
-}
+void linear_transformations(ColorBuffer *color_buffer);
 
 #endif
 

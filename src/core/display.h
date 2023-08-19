@@ -10,9 +10,8 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
-namespace pixelscape {
 void draw_line(
-    ColorBuffer *color_buffer, 
+    ColorBuffer *color_buffer,
     float x0, float y0,
     float x1, float y1,
     uint32_t color);
@@ -51,5 +50,4 @@ void draw_triangle(
 );
 
 void draw_axis(ColorBuffer *color_buffer);
-} // namespace pixelscape
 #endif
