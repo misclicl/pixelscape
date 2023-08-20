@@ -16,11 +16,11 @@
 
 #include "mesh.h"
 #include "raylib.h"
-#include "raymath.h"
 
 #include "core/color_buffer.h"
 #include "core/display.h"
 #include "model.h"
+#include "logger.h"
 
 #define local_persist static;
 #define global_variable static;
@@ -33,6 +33,8 @@ const int target_render_size_x = window_width / 2;
 const int target_render_size_y = window_height / 2;
 
 int main(int argc, char **argv) {
+    logger_init(LOG_LEVEL_DEBUG);
+
     doctest::Context context;
     context.applyCommandLine(argc, argv);
     int res = context.run();

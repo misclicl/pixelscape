@@ -2,6 +2,24 @@
 
 #include "matrix.h"
 
+// Following right-handed coordinate system here, similar to OpenGL
+//
+//                 ^ y
+//                 |
+//                 |
+//                 |  / -z
+//                 | /
+//                 |/
+//   -x -----------*------------> x
+//                /|
+//               / |
+//              /  |
+//           z /   |
+//                 |
+//                 | -y
+//
+
+
 Matrix4 mat4_get_identity() {
     return {
         .m0 = 1, .m4 = 0, .m8  = 0, .m12 = 0,
@@ -277,9 +295,10 @@ Matrix4 mat4_get_world(Vec3f scale, Vec3f rotation, Vec3f translation) {
     return out;
 }
 
+// TODO: Try to write tests here:
 TEST_CASE("mat4_look_at basic test") {
-    Vec3f up{ 0, 1, 0 }; 
-    Vec3f from{ 1, 1, 1 }; 
+    Vec3f up{ 0, 1, 0 };
+    Vec3f from{ 1, 1, 1 };
     Vec3f to{ 0, 0, 0 };
 
     // Matrix4 result = mat4_look_at(from, to, up);

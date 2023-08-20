@@ -23,7 +23,8 @@ struct Plane {
 
 void init_clipping_planes(
     Plane planes[6],
-    float horizontal_fov,
+    float fov_horizontal,
+    float fov_vertical,
     float z_near,
     float z_far
 );

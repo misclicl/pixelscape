@@ -2,13 +2,14 @@
 
 void init_clipping_planes(
     Plane planes[6],
-    float horizontal_fov,
+    float fov_horizontal,
+    float fov_vertical,
     float z_near,
     float z_far
 ) {
-    float half_fov_h = horizontal_fov / 2;
-    // FIXME: calculate half_fov_v
-    float half_fov_v = horizontal_fov / 2;
+    float half_fov_v = fov_vertical / 2;
+    float half_fov_h = fov_horizontal / 2;
+
     Vec3f origin = {};
 
     planes[CLIPPING_PLANE_RIGHT] = {
