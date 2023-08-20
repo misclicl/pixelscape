@@ -202,7 +202,10 @@ void Program::project_mesh(ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix
         TinyPolygon polygon = polygon_from_triangle(
             vec3_from_vec4(v_view[0]),
             vec3_from_vec4(v_view[1]),
-            vec3_from_vec4(v_view[2])
+            vec3_from_vec4(v_view[2]),
+            mesh.vertices[face->indices[0]].texcoords,
+            mesh.vertices[face->indices[1]].texcoords,
+            mesh.vertices[face->indices[2]].texcoords
         );
 
         // Clip the polygon
@@ -215,9 +218,9 @@ void Program::project_mesh(ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix
 
         for (int t = 0; t < triangle_count; t++) {
             Vec3f v_view[3] = {
-                triangles[t].points[0],
-                triangles[t].points[1],
-                triangles[t].points[2]
+                triangles[t].vertices[0],
+                triangles[t].vertices[1],
+                triangles[t].vertices[2]
             };
 
             for (int j = 0; j < 3; j++) {
@@ -232,25 +235,20 @@ void Program::project_mesh(ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix
                 };
             }
 
+            auto texcoords = triangles[t].texcoords;
+
             // Write transformed vertices to the buffer
             FaceBufferItem f = {
                 .vertices = {
-                    {v_camera[0].x, v_camera[0].y, v_camera[0].z, v_camera[0].w},
-                    {v_camera[1].x, v_camera[1].y, v_camera[1].z, v_camera[1].w},
-                    {v_camera[2].x, v_camera[2].y, v_camera[2].z, v_camera[2].w},
+                    v_camera[0],
+                    v_camera[1],
+                    v_camera[2]
                 },
-                .texcoords = {{
-                                  mesh.vertices[face->indices[0]].texcoords.x,
-                                  mesh.vertices[face->indices[0]].texcoords.y,
-                              },
-                              {
-                                  mesh.vertices[face->indices[1]].texcoords.x,
-                                  mesh.vertices[face->indices[1]].texcoords.y,
-                              },
-                              {
-                                  mesh.vertices[face->indices[2]].texcoords.x,
-                                  mesh.vertices[face->indices[2]].texcoords.y,
-                              }},
+                .texcoords = {
+                    texcoords[0],
+                    texcoords[1],
+                    texcoords[2]
+                },
                 .triangle_normal = triangle_normal,
             };
 
@@ -306,7 +304,6 @@ void static render_normals(
 
 
 void Program::init(int width, int height) {
-
     char *cube_obj_path = (char *)"assets/cube.obj";
     char *mesh_obj_path = (char *)"assets/headscan.obj";
     char *susan_obj_path = (char *)"assets/susan.obj";
@@ -321,9 +318,9 @@ void Program::init(int width, int height) {
     std::vector<TinyVertex> vertices;
     std::vector<TinyFace> faces;
 
-    // parse_mesh(mesh_obj_path, &vertices, &faces);
+    parse_mesh(mesh_obj_path, &vertices, &faces);
     // parse_mesh(susan_obj_path, &vertices, &faces);
-    parse_mesh(cube_obj_path, &vertices, &faces);
+    // parse_mesh(cube_obj_path, &vertices, &faces);
 
     mesh.vertices = (TinyVertex *)malloc(vertices.size() * sizeof(TinyVertex));
     mesh.faces = (TinyFace *)malloc(faces.size() * sizeof(TinyFace));
@@ -343,12 +340,7 @@ void Program::init(int width, int height) {
     mesh.translation = { 0.f, 0.f, 0.f };
 
     mesh.diffuse_texture = LoadImage("assets/headscan-256.png");
-    mesh.diffuse_texture = LoadImage("assets/grid-2.png");
-
-    // camera = {
-    //     .position  = {0.0f, 1.0f, -1.0f},
-    //     .direction = {0.0f, 0.0f, -5.0f}
-    // };
+    // mesh.diffuse_texture = LoadImage("assets/grid.png");
 
     camera_fps = {
         .position = {0.0, 0.0f, 5.0f},
@@ -366,13 +358,11 @@ void Program::init(int width, int height) {
     aspect_ratio = static_cast<float>(height) / width;
     float aspect_ratio_x = 1 / aspect_ratio;
     float camera_fov_x = 2 * atan(tan(camera_fov_y / 2) * aspect_ratio_x);
-    // float camera_fov_y = 2 * atan (tan(camera_fov_x / 2) * aspect_ratio_y);
 
     init_clipping_planes(
         clipping_planes,
         camera_fov_x,
         camera_fov_y,
-        // camera_fov_x,
         Z_NEAR,
         Z_FAR
     );
@@ -426,20 +416,36 @@ void Program::handle_input(float delta_time) {
     // SECTION: Render modes
     if (IsKeyPressed(KEY_C)) {
         render_flags.flip(BACKFACE_CULLING);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Backface culling: %d", static_cast<int>(render_flags[BACKFACE_CULLING]));
+        log_message(
+            LogLevel::LOG_LEVEL_DEBUG,
+            "Backface culling: %d",
+            static_cast<int>(render_flags[BACKFACE_CULLING])
+        );
     }
     if (IsKeyPressed(KEY_N)) {
         render_flags.flip(ENABLE_FACE_NORMALS);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Face normals: %d", static_cast<int>(render_flags[ENABLE_FACE_NORMALS]));
+        log_message(
+            LogLevel::LOG_LEVEL_DEBUG,
+            "Face normals: %d",
+            static_cast<int>(render_flags[ENABLE_FACE_NORMALS])
+        );
     }
     // TODO: replace everything with logger
     if (IsKeyPressed(KEY_ZERO)) {
         render_flags.flip(ENABLE_SHADING);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Enable shading: %d", static_cast<int>(render_flags[ENABLE_SHADING]));
+        log_message(
+            LogLevel::LOG_LEVEL_DEBUG,
+            "Enable shading: %d",
+            static_cast<int>(render_flags[ENABLE_SHADING])
+        );
     }
     if (IsKeyPressed(KEY_NINE)) {
         render_flags.flip(ENABLE_Z_BUFFER_CHECK);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "z-buffer check: %d", static_cast<int>(render_flags[ENABLE_Z_BUFFER_CHECK]));
+        log_message(
+            LogLevel::LOG_LEVEL_DEBUG,
+            "z-buffer check: %d",
+            static_cast<int>(render_flags[ENABLE_Z_BUFFER_CHECK])
+        );
     }
     if (IsKeyPressed(KEY_Z)) {
         render_flags.flip(VERTEX_ORDERING);
@@ -501,6 +507,18 @@ void Program::handle_input(float delta_time) {
     }
     if (IsKeyDown(KEY_Q)) {
         camera_fps.position.y -= camera_movement_speed * delta_time;
+    }
+
+    if (IsKeyPressed(KEY_T)) {
+        if (ps_texture_filtering_mode == TextureFiltering::NEAREST_NEIGHBOR) {
+            set_texture_filtering(TextureFiltering::BILINEAR);
+        } else {
+            set_texture_filtering(TextureFiltering::NEAREST_NEIGHBOR);
+        }
+        log_message(
+            LogLevel::LOG_LEVEL_DEBUG, "Texture filtering %d",
+            static_cast<int>(ps_texture_filtering_mode)
+        );
     }
 }
 

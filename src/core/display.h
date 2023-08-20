@@ -10,6 +10,11 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
+enum TextureFiltering {
+    NEAREST_NEIGHBOR,
+    BILINEAR,
+};
+
 void draw_line(
     ColorBuffer *color_buffer,
     float x0, float y0,
@@ -29,15 +34,6 @@ void draw_triangle_wireframe(
     TinyColor color
 );
 
-// void draw_triangle(
-//     ColorBuffer *color_buffer,
-//     const Vector3 *vertices,
-//     const Vector2 (&uv_coords)[3],
-//     Image &diffuse_texture,
-//     const float intencity,
-//     float *zbuffer
-// );
-
 void draw_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
@@ -50,4 +46,7 @@ void draw_triangle(
 );
 
 void draw_axis(ColorBuffer *color_buffer);
+
+extern TextureFiltering ps_texture_filtering_mode;
+void set_texture_filtering(TextureFiltering tf);
 #endif

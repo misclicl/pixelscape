@@ -9,6 +9,12 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
+TextureFiltering ps_texture_filtering_mode = BILINEAR;
+
+void set_texture_filtering(TextureFiltering tf) {
+    ps_texture_filtering_mode = tf;
+};
+
 void draw_line(
     ColorBuffer *color_buffer,
     float x0, float y0,
@@ -89,68 +95,43 @@ static void barycentric_coords(Vec2f vertices[3], Vec2f p, float *alpha, float *
     *alpha = 1.0f - *beta - *gamma;
 }
 
-void draw_triangle(
-    ColorBuffer *color_buffer,
-    const Vector3 *vertices,
-    const Vector2 (&uv_coords)[3],
-    Image &diffuse_texture,
-    const float intencity,
-    float *zbuffer) {
-    // int screen_width = color_buffer->width;
-    // int screen_height = color_buffer->height;
-    //
-    // int boundaries[4];
-    // triangle_bb(vertices, boundaries, screen_width, screen_height);
-    //
-    // Vector3 p;
-    //
-    // for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
-    //     for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
-    //         float u, v, w;
-    //         barycentric_coords(vertices, Vector3{(float)p.x, (float)p.y, 0}, u, v, w);
-    //
-    //         if (w >= 0 && v >= 0 && u >= 0) {
-    //             p.z = u * vertices[0].z + v * vertices[1].z + w * vertices[2].z;
-    //             int index = (int)p.x + (int)p.y * screen_width;
-    //
-    //             if (zbuffer[index] < p.z) {
-    //                 // ######## UV ##########
-    //
-    //                 float alpha = u;
-    //                 float beta = v;
-    //                 float gamma = w;
-    //
-    //                 float u = alpha * uv_coords[0].x + beta * uv_coords[1].x + gamma * uv_coords[2].x;
-    //                 float v = alpha * uv_coords[0].y + beta * uv_coords[1].y + gamma * uv_coords[2].y;
-    //
-    //                 u = floor(u * diffuse_texture.width);
-    //                 v = diffuse_texture.height - floor(v * diffuse_texture.height);
-    //
-    //                 int index_uv = (v * diffuse_texture.height) + u;
-    //
-    //                 Color *data = (Color *)diffuse_texture.data;
-    //                 Color color = GetPixelColor(data + index_uv, diffuse_texture.format);
-    //                 color = {
-    //                     (unsigned char)(color.r * intencity),
-    //                     (unsigned char)(color.g * intencity),
-    //                     (unsigned char)(color.b * intencity),
-    //                     color.a};
-    //
-    //                 // ######## UV ENDS ##########
-    //
-    //                 zbuffer[index] = p.z;
-    //                 color_buffer->set_pixel(p.x, p.y, ColorToInt(color));
-    //             }
-    //         }
-    //     }
-    // }
-}
-
 inline float apply_barycentric(float a, float b, float c, float alpha, float beta, float gamma) {
     return alpha * a + beta * b + gamma * c;
 }
 
 static void draw_triangle_pixel() {
+}
+
+static TinyColor sample_color_from_texture(
+    Color* texture_data,
+    Image *texture,
+    int u, int v
+) {
+     size_t uv_idx = (v * texture->height) + u;
+     auto color = GetPixelColor(texture_data + uv_idx, texture->format);
+
+     switch (ps_texture_filtering_mode) {
+        case TextureFiltering::NEAREST_NEIGHBOR:
+            return ColorToInt(color);
+        case TextureFiltering::BILINEAR: {
+            uv_idx = (v * texture->height) + u + 1;
+            auto color_right = GetPixelColor(texture_data + uv_idx, texture->format);
+            uv_idx = (v * texture->height) + u - 1;
+            auto color_left = GetPixelColor(texture_data + uv_idx, texture->format);
+            uv_idx = ((v - 1) * texture->height) + u;
+            auto color_up = GetPixelColor(texture_data + uv_idx, texture->format);
+            uv_idx = ((v + 1) * texture->height) + u;
+            auto color_down = GetPixelColor(texture_data + uv_idx, texture->format);
+
+            return tiny_color_from_rgb(
+                (color.r + color_left.r + color_right.r + color_down.r + color_up.r) / 5,
+                (color.g + color_left.g + color_right.g + color_down.g + color_up.g) / 5,
+                (color.b + color_left.b + color_right.b + color_down.b + color_up.b) / 5
+            );
+        }
+        default:
+            return tiny_color_from_rgb(0, 0, 0);
+    }
 }
 
 void draw_triangle(
@@ -223,8 +204,7 @@ void draw_triangle(
                     u = floor(u * (diffuse_texture->width - 1));
                     v = floor(v * (diffuse_texture->height - 1));
 
-                    size_t uv_idx = (v * diffuse_texture->height) + u;
-                    color = ColorToInt(GetPixelColor(data + uv_idx, diffuse_texture->format));
+                    color = sample_color_from_texture(data, diffuse_texture, u, v);
 
                     color = apply_intensity(color, {255, 255, 255, 255}, intensity);
                 }

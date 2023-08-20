@@ -11,16 +11,8 @@
 // Stores indices
 struct TinyFace {
     int indices[3] = {};
-
     TinyColor color;
 };
-
-struct TinyTriangle {
-    Vec3f points[3];
-};
-
-extern Vec3f cube_vertices[CUBE_VERTICES_COUNT];
-extern TinyFace cube_faces[CUBE_FACES_COUNT];
 
 // Stores values
 struct TinyVertex {
@@ -33,6 +25,14 @@ struct TinyVertex {
                texcoords == other.texcoords;
     }
 };
+
+struct TinyTriangle {
+    Vec3f vertices[3];
+    Vec2f texcoords[3];
+};
+
+extern Vec3f cube_vertices[CUBE_VERTICES_COUNT];
+extern TinyFace cube_faces[CUBE_FACES_COUNT];
 
 struct TinyMesh {
     TinyVertex *vertices;
