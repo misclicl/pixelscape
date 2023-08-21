@@ -19,6 +19,7 @@
 #include "../logger.h"
 
 #include "mesh_rendering.h"
+#include "renderer.h"
 
 // TODO: Prevent crashing if overflows
 #define FACE_BUFFER_SIZE_LIMIT 250000
@@ -66,7 +67,7 @@ static void draw_debug_quad(
         0x000000FF,
         diffuse_texture,
         1.0f,
-        true
+        nullptr
     );
 
     verts[0] = {0, 0, -5, 1};
@@ -84,7 +85,7 @@ static void draw_debug_quad(
         0x000000FF,
         diffuse_texture,
         1.0f,
-        true
+        nullptr
     );
 }
 
@@ -92,7 +93,7 @@ static void render_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
     FaceBufferItem *face,
-    std::bitset<24> render_flags,
+    RendererState *renderer_state,
     Light *light,
     Image *diffuse_texture
 ) {
@@ -100,7 +101,7 @@ static void render_triangle(
 
     alignment = std::max(alignment, 0.f);
 
-    float intensity = render_flags[ENABLE_SHADING] ?
+    float intensity = renderer_state->flags[USE_SHADING] ?
         alignment:
         1.f;
 
@@ -111,14 +112,14 @@ static void render_triangle(
 
     TinyColor base_color;
 
-    base_color = render_flags[ENABLE_FACE_NORMALS] ?
+    base_color = renderer_state->flags[USE_FACE_NORMALS] ?
                  normal_color : default_color;
 
     base_color = apply_intensity(base_color, light_color, intensity * 2);
 
     // TODO: might be a good idea to move all vertex array conversion
-    // over here. I already done it in DISPLAY_VERTICES section
-    if (render_flags[DISPLAY_TRIANGLES]) {
+    // over here. I already done it in SHOW_VERTICES section
+    if (renderer_state->flags[SHOW_TRIANGLES]) {
         draw_triangle(
             color_buffer,
             depth_buffer,
@@ -127,15 +128,15 @@ static void render_triangle(
             base_color,
             diffuse_texture,
             intensity,
-            render_flags[ENABLE_Z_BUFFER_CHECK]
+            renderer_state
         );
     }
 
-    if (render_flags[DISPLAY_WIREFRAME]) {
+    if (renderer_state->flags[SHOW_WIREFRAME]) {
         draw_triangle_wireframe(color_buffer, face->vertices, 0xAAAAAB00);
     }
 
-    if (render_flags[DISPLAY_VERTICES]) {
+    if (renderer_state->flags[SHOW_VERTICES]) {
         color_buffer->set_pixel(face->vertices[0].x, face->vertices[0].y, 0xF57716FF);
         color_buffer->set_pixel(face->vertices[1].x, face->vertices[1].y, 0xF57716FF);
         color_buffer->set_pixel(face->vertices[2].x, face->vertices[2].y, 0xF57716FF);
@@ -184,7 +185,7 @@ void Program::project_mesh(ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix
             v_view[2]
         );
 
-        if (render_flags[BACKFACE_CULLING]) {
+        if (renderer_state.flags[CULL_BACKFACE]) {
             auto a = vec3_from_vec4(v_view[0]);
             auto origin = Vec3f {0.0f, 0.0f, 0.0f};
 
@@ -263,7 +264,7 @@ void Program::render_mesh(ColorBuffer *color_buffer, Light *light) {
             color_buffer,
             depth_buffer,
             &face_buffer[i],
-            render_flags,
+            &renderer_state,
             light,
             &mesh.diffuse_texture
         );
@@ -309,11 +310,11 @@ void Program::init(int width, int height) {
     char *susan_obj_path = (char *)"assets/susan.obj";
     char *test_obj_path = (char *)"assets/test.obj";
 
-    render_flags.set(DISPLAY_TRIANGLES, 1);
-    render_flags.set(DISPLAY_WIREFRAME, 0);
-    render_flags.set(BACKFACE_CULLING, 1);
-    render_flags.set(ENABLE_Z_BUFFER_CHECK, 1);
-    render_flags.set(ENABLE_SHADING, 1);
+    renderer_state.flags.set(SHOW_TRIANGLES, 1);
+    renderer_state.flags.set(SHOW_WIREFRAME, 0);
+    renderer_state.flags.set(CULL_BACKFACE, 1);
+    renderer_state.flags.set(USE_Z_BUFFER, 1);
+    renderer_state.flags.set(USE_SHADING, 1);
 
     std::vector<TinyVertex> vertices;
     std::vector<TinyFace> faces;
@@ -407,7 +408,7 @@ void Program::run(ColorBuffer *color_buffer) {
 
     render_mesh(color_buffer, &light_pr);
 
-    if (render_flags[ENABLE_FACE_NORMALS]) {
+    if (renderer_state.flags[USE_FACE_NORMALS]) {
         render_normals(color_buffer, face_buffer, depth_buffer, face_buffer_size);
     }
 }
@@ -415,54 +416,50 @@ void Program::run(ColorBuffer *color_buffer) {
 void Program::handle_input(float delta_time) {
     // SECTION: Render modes
     if (IsKeyPressed(KEY_C)) {
-        render_flags.flip(BACKFACE_CULLING);
+        renderer_state.flags.flip(CULL_BACKFACE);
         log_message(
             LogLevel::LOG_LEVEL_DEBUG,
             "Backface culling: %d",
-            static_cast<int>(render_flags[BACKFACE_CULLING])
+            static_cast<int>(renderer_state.flags[CULL_BACKFACE])
         );
     }
     if (IsKeyPressed(KEY_N)) {
-        render_flags.flip(ENABLE_FACE_NORMALS);
+        renderer_state.flags.flip(USE_FACE_NORMALS);
         log_message(
             LogLevel::LOG_LEVEL_DEBUG,
             "Face normals: %d",
-            static_cast<int>(render_flags[ENABLE_FACE_NORMALS])
+            static_cast<int>(renderer_state.flags[USE_FACE_NORMALS])
         );
     }
     // TODO: replace everything with logger
     if (IsKeyPressed(KEY_ZERO)) {
-        render_flags.flip(ENABLE_SHADING);
+        renderer_state.flags.flip(USE_SHADING);
         log_message(
             LogLevel::LOG_LEVEL_DEBUG,
             "Enable shading: %d",
-            static_cast<int>(render_flags[ENABLE_SHADING])
+            static_cast<int>(renderer_state.flags[USE_SHADING])
         );
     }
     if (IsKeyPressed(KEY_NINE)) {
-        render_flags.flip(ENABLE_Z_BUFFER_CHECK);
+        renderer_state.flags.flip(USE_Z_BUFFER);
         log_message(
             LogLevel::LOG_LEVEL_DEBUG,
             "z-buffer check: %d",
-            static_cast<int>(render_flags[ENABLE_Z_BUFFER_CHECK])
+            static_cast<int>(renderer_state.flags[USE_Z_BUFFER])
         );
-    }
-    if (IsKeyPressed(KEY_Z)) {
-        render_flags.flip(VERTEX_ORDERING);
-        std::cout << "TinyVertex ordering : " << render_flags[VERTEX_ORDERING] << "\n";
     }
 
     if (IsKeyPressed(KEY_ONE)) {
-        render_flags.flip(DISPLAY_VERTICES);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display vertices: %d", static_cast<int>(render_flags[DISPLAY_VERTICES]));
+        renderer_state.flags.flip(SHOW_VERTICES);
+        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display vertices: %d", static_cast<int>(renderer_state.flags[SHOW_VERTICES]));
     }
     if (IsKeyPressed(KEY_TWO)) {
-        render_flags.flip(DISPLAY_WIREFRAME);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display wireframe: %d", static_cast<int>(render_flags[DISPLAY_WIREFRAME]));
+        renderer_state.flags.flip(SHOW_WIREFRAME);
+        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display wireframe: %d", static_cast<int>(renderer_state.flags[SHOW_WIREFRAME]));
     }
     if (IsKeyPressed(KEY_THREE)) {
-        render_flags.flip(DISPLAY_TRIANGLES);
-        std::cout << "Display triangles: " << render_flags[DISPLAY_TRIANGLES] << "\n";
+        renderer_state.flags.flip(SHOW_TRIANGLES);
+        std::cout << "Display triangles: " << renderer_state.flags[SHOW_TRIANGLES] << "\n";
     }
 
     // SECTION: Camera rotation
@@ -510,14 +507,15 @@ void Program::handle_input(float delta_time) {
     }
 
     if (IsKeyPressed(KEY_T)) {
-        if (ps_texture_filtering_mode == TextureFiltering::NEAREST_NEIGHBOR) {
-            set_texture_filtering(TextureFiltering::BILINEAR);
+        if (renderer_state.texture_filter_mode == TextureFilterMode::NEAREST_NEIGHBOR) {
+            renderer_state.texture_filter_mode = TextureFilterMode::BILINEAR;
         } else {
-            set_texture_filtering(TextureFiltering::NEAREST_NEIGHBOR);
+            renderer_state.texture_filter_mode = TextureFilterMode::NEAREST_NEIGHBOR;
         }
+
         log_message(
             LogLevel::LOG_LEVEL_DEBUG, "Texture filtering %d",
-            static_cast<int>(ps_texture_filtering_mode)
+            static_cast<int>(renderer_state.texture_filter_mode)
         );
     }
 }

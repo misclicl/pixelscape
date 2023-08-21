@@ -9,12 +9,6 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
-TextureFiltering ps_texture_filtering_mode = BILINEAR;
-
-void set_texture_filtering(TextureFiltering tf) {
-    ps_texture_filtering_mode = tf;
-};
-
 void draw_line(
     ColorBuffer *color_buffer,
     float x0, float y0,
@@ -105,15 +99,19 @@ static void draw_triangle_pixel() {
 static TinyColor sample_color_from_texture(
     Color* texture_data,
     Image *texture,
-    int u, int v
+    int u, int v,
+    RendererState *renderer_state
 ) {
      size_t uv_idx = (v * texture->height) + u;
      auto color = GetPixelColor(texture_data + uv_idx, texture->format);
 
-     switch (ps_texture_filtering_mode) {
-        case TextureFiltering::NEAREST_NEIGHBOR:
+     auto texture_filter_mode = renderer_state == nullptr ?
+        NEAREST_NEIGHBOR : renderer_state->texture_filter_mode;
+
+     switch (texture_filter_mode) {
+        case TextureFilterMode::NEAREST_NEIGHBOR:
             return ColorToInt(color);
-        case TextureFiltering::BILINEAR: {
+        case TextureFilterMode::BILINEAR: {
             uv_idx = (v * texture->height) + u + 1;
             auto color_right = GetPixelColor(texture_data + uv_idx, texture->format);
             uv_idx = (v * texture->height) + u - 1;
@@ -138,11 +136,11 @@ void draw_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
     Vec4f vertices[3],
-    Vec2f uv_coords[3],
+    Vec2f texcoords[3],
     TinyColor face_color,
     Image *diffuse_texture,
     float intensity,
-    bool z_buffer_check
+    RendererState *renderer_state
 ) {
     int screen_width = color_buffer->width;
     int screen_height = color_buffer->height;
@@ -187,14 +185,14 @@ void draw_triangle(
 
                     // UV Interpolation of u/w and v/w
                     u = apply_barycentric(
-                        uv_coords[0].x / vertices[0].w,
-                        uv_coords[1].x / vertices[1].w,
-                        uv_coords[2].x / vertices[2].w,
+                        texcoords[0].x / vertices[0].w,
+                        texcoords[1].x / vertices[1].w,
+                        texcoords[2].x / vertices[2].w,
                         alpha, beta, gamma);
                     v = apply_barycentric(
-                        uv_coords[0].y / vertices[0].w,
-                        uv_coords[1].y / vertices[1].w,
-                        uv_coords[2].y / vertices[2].w,
+                        texcoords[0].y / vertices[0].w,
+                        texcoords[1].y / vertices[1].w,
+                        texcoords[2].y / vertices[2].w,
                         alpha, beta, gamma);
 
                     u /= w_inverse;
@@ -204,14 +202,14 @@ void draw_triangle(
                     u = floor(u * (diffuse_texture->width - 1));
                     v = floor(v * (diffuse_texture->height - 1));
 
-                    color = sample_color_from_texture(data, diffuse_texture, u, v);
+                    color = sample_color_from_texture(data, diffuse_texture, u, v, renderer_state);
 
                     color = apply_intensity(color, {255, 255, 255, 255}, intensity);
                 }
 
                 int depth_buffer_idx = static_cast<int>(p.x + color_buffer->width * p.y);
 
-                if (w_inverse < depth_buffer[depth_buffer_idx] && z_buffer_check) {
+                if (w_inverse < depth_buffer[depth_buffer_idx] && renderer_state->flags[USE_Z_BUFFER]) {
                     continue;
                 }
 

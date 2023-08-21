@@ -1,25 +1,12 @@
-#ifndef __RENDERING_MESH__
-#define __RENDERING_MESH__
+#pragma once
 
-#include <bitset>
 #include <stdint.h>
 
 #include "../core/color_buffer.h"
 #include "../core/matrix.h"
 #include "../mesh.h"
 #include "../light.h"
-
-enum RenderingFlags {
-    BACKFACE_CULLING,
-    VERTEX_ORDERING,
-    DISPLAY_VERTICES,
-    DISPLAY_TRIANGLES,
-    DISPLAY_WIREFRAME,
-
-    ENABLE_FACE_NORMALS,
-    ENABLE_SHADING,
-    ENABLE_Z_BUFFER_CHECK,
-};
+#include "renderer.h"
 
 struct FaceBufferItem {
     Vec4f vertices[3];
@@ -44,12 +31,11 @@ struct Program {
 
     Light light;
     TinyMesh mesh;
-    std::bitset<24> render_flags;
+
+    RendererState renderer_state;
 
     FaceBufferItem *face_buffer;
     size_t face_buffer_size = 0;
 
     float *depth_buffer;
 };
-
-#endif

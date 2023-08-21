@@ -9,11 +9,7 @@
 #include "color_buffer.h"
 #include "tiny_color.h"
 #include "tiny_math.h"
-
-enum TextureFiltering {
-    NEAREST_NEIGHBOR,
-    BILINEAR,
-};
+#include "../examples/renderer.h"
 
 void draw_line(
     ColorBuffer *color_buffer,
@@ -42,11 +38,9 @@ void draw_triangle(
     TinyColor face_color,
     Image *diffuse_texture,
     float intensity,
-    bool z_buffer_check
+    RendererState *renderer_state
 );
 
 void draw_axis(ColorBuffer *color_buffer);
 
-extern TextureFiltering ps_texture_filtering_mode;
-void set_texture_filtering(TextureFiltering tf);
 #endif
