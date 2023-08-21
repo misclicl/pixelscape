@@ -311,7 +311,7 @@ void Program::init(int width, int height) {
 
     render_flags.set(DISPLAY_TRIANGLES, 1);
     render_flags.set(DISPLAY_WIREFRAME, 0);
-    render_flags.set(BACKFACE_CULLING, 0);
+    render_flags.set(BACKFACE_CULLING, 1);
     render_flags.set(ENABLE_Z_BUFFER_CHECK, 1);
     render_flags.set(ENABLE_SHADING, 1);
 
