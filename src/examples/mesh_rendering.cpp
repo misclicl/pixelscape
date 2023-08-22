@@ -14,7 +14,6 @@
 #include "../core/tiny_color.h"
 #include "../core/tiny_math.h"
 
-#include "../loader_obj.h"
 #include "../mesh.h"
 #include "../logger.h"
 
@@ -158,7 +157,7 @@ inline Vec4f transform_model_view(Vec3f in, Matrix4 *mat_world, Matrix4 *mat_vie
 };
 
 
-void Program::project_mesh(ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
+void Program::project_mesh(TinyMesh *mesh, ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
     face_buffer_size = 0;
 
     int depth_buffer_size = color_buffer->height * color_buffer->width;
@@ -170,12 +169,12 @@ void Program::project_mesh(ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix
     Vec4f v_view[3];
     Vec4f v_camera[3];
 
-    for (int i = 0; i < mesh.face_count; i++) {
-        TinyFace *face = &(mesh.faces[i]);
+    for (int i = 0; i < mesh->face_count; i++) {
+        TinyFace *face = &(mesh->faces[i]);
 
         // model -> view
         for (int j = 0; j < 3; j++) {
-            v_view[j] = transform_model_view(mesh.vertices[face->indices[j]].position, mat_world, mat_view);
+            v_view[j] = transform_model_view(mesh->vertices[face->indices[j]].position, mat_world, mat_view);
         }
 
         // SECTION: backface culling
@@ -204,9 +203,9 @@ void Program::project_mesh(ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix
             vec3_from_vec4(v_view[0]),
             vec3_from_vec4(v_view[1]),
             vec3_from_vec4(v_view[2]),
-            mesh.vertices[face->indices[0]].texcoords,
-            mesh.vertices[face->indices[1]].texcoords,
-            mesh.vertices[face->indices[2]].texcoords
+            mesh->vertices[face->indices[0]].texcoords,
+            mesh->vertices[face->indices[1]].texcoords,
+            mesh->vertices[face->indices[2]].texcoords
         );
 
         // Clip the polygon
@@ -258,7 +257,7 @@ void Program::project_mesh(ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix
     }
 }
 
-void Program::render_mesh(ColorBuffer *color_buffer, Light *light) {
+void Program::render_mesh(ColorBuffer *color_buffer, Light *light, TinyMesh *mesh) {
     for (int i = 0; i < face_buffer_size; i++) {
         render_triangle(
             color_buffer,
@@ -266,7 +265,7 @@ void Program::render_mesh(ColorBuffer *color_buffer, Light *light) {
             &face_buffer[i],
             &renderer_state,
             light,
-            &mesh.diffuse_texture
+            &mesh->diffuse_texture
         );
     }
 }
@@ -277,8 +276,6 @@ void static render_normals(
     float *depth_buffer,
     size_t face_buffer_size
 ) {
-
-
     for (int i = 0; i < face_buffer_size; i++) {
         auto face = &face_buffer[i];
         int depth_buffer_idx =
@@ -287,6 +284,7 @@ void static render_normals(
         if (face->vertices[0].w < depth_buffer[depth_buffer_idx]) {
             continue;
         }
+
         auto color = tiny_color_from_rgb(
             (1 + face->triangle_normal.x) * 128,
             (1 + face->triangle_normal.y) * 128,
@@ -316,32 +314,9 @@ void Program::init(int width, int height) {
     renderer_state.flags.set(USE_Z_BUFFER, 1);
     renderer_state.flags.set(USE_SHADING, 1);
 
-    std::vector<TinyVertex> vertices;
-    std::vector<TinyFace> faces;
-
-    parse_mesh(mesh_obj_path, &vertices, &faces);
-    // parse_mesh(susan_obj_path, &vertices, &faces);
-    // parse_mesh(cube_obj_path, &vertices, &faces);
-
-    mesh.vertices = (TinyVertex *)malloc(vertices.size() * sizeof(TinyVertex));
-    mesh.faces = (TinyFace *)malloc(faces.size() * sizeof(TinyFace));
-
-    for (int i = 0; i < vertices.size(); i++) {
-        mesh.vertices[i].position = vertices[i].position;
-        mesh.vertices[i].texcoords = vertices[i].texcoords;
-    }
-
-    for (int i = 0; i < faces.size(); i++) {
-        mesh.faces[i] = faces[i];
-    }
-
-    mesh.face_count = faces.size();
-    mesh.vertex_count = vertices.size();
-    mesh.scale = { 1.0f, 1.0f, 1.0f };
-    mesh.translation = { 0.f, 0.f, 0.f };
-
-    mesh.diffuse_texture = LoadImage("assets/headscan-256.png");
-    // mesh.diffuse_texture = LoadImage("assets/grid.png");
+    auto head_mesh = ps_load_mesh(mesh_obj_path, "assets/headscan-256.png");
+    head_mesh->translation.x = 2.0f;
+    auto susan_mesh = ps_load_mesh(susan_obj_path, "assets/grid-2.png");
 
     camera_fps = {
         .position = {0.0, 0.0f, 5.0f},
@@ -375,17 +350,13 @@ void Program::run(ColorBuffer *color_buffer) {
 
     handle_input(delta);
 
-
-    Matrix4 mat_world = mat4_get_world(
-        mesh.scale,
-        mesh.rotation,
-        mesh.translation
-    );
+    auto mesh_data = ps_get_mesh_data();
+    auto mesh_count = ps_get_mesh_count();
 
     Vec3f up= {0.0f, 1.0f, 0.0f};
     Vec3f target = {0.0f, 0.0f, -1.0f};
 
-    auto camera_rotation = mat4_get_rotation(camera_fps.pitch_angle, camera_fps.yaw_angle, 0);
+    Matrix4 camera_rotation = mat4_get_rotation(camera_fps.pitch_angle, camera_fps.yaw_angle, 0);
     camera_fps.direction = vec3_from_vec4(mat4_multiply_vec4(&camera_rotation, vec4_from_vec3(target)));
     target = camera_fps.position + camera_fps.direction;
 
@@ -394,23 +365,31 @@ void Program::run(ColorBuffer *color_buffer) {
         target,
         {0.0f, 1.0f, 0.0f}
     );
-
-    Program::project_mesh(color_buffer, &mat_world, &mat_view);
-
     Vec4f light_direction_projected = mat4_multiply_vec4(
         &mat_view,
         vec4_from_vec3(light.direction, false)
     );
-
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
+    draw_debug_quad(color_buffer, &mesh_data[1].diffuse_texture, depth_buffer);
 
-    draw_debug_quad(color_buffer, &mesh.diffuse_texture, depth_buffer);
+    Matrix4 mat_world;
+    for (size_t i = 0; i < mesh_count; i++) {
+        auto mesh = &mesh_data[i];
 
-    render_mesh(color_buffer, &light_pr);
+        mat_world = mat4_get_world(
+            mesh->scale,
+            mesh->rotation,
+            mesh->translation
+        );
 
-    if (renderer_state.flags[USE_FACE_NORMALS]) {
-        render_normals(color_buffer, face_buffer, depth_buffer, face_buffer_size);
+        Program::project_mesh(mesh, color_buffer, &mat_world, &mat_view);
+        render_mesh(color_buffer, &light_pr, mesh);
     }
+
+
+    // if (renderer_state.flags[USE_FACE_NORMALS]) {
+    //     render_normals(color_buffer, face_buffer, depth_buffer, face_buffer_size);
+    // }
 }
 
 void Program::handle_input(float delta_time) {
@@ -521,14 +500,6 @@ void Program::handle_input(float delta_time) {
 }
 
 void Program::cleanup() {
-    // Clean-up for vertices and faces
-    free(mesh.vertices);
-    free(mesh.faces);
-    mesh.vertices = nullptr; // Set the pointer to nullptr after freeing
-    mesh.faces = nullptr; // Set the pointer to nullptr after freeing
-
     free(depth_buffer);
     free(face_buffer);
-
-    UnloadImage(mesh.diffuse_texture);
 }

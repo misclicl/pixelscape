@@ -21,16 +21,16 @@ struct Program {
     void run(ColorBuffer *color_buffer);
     void cleanup();
     void project_mesh(
+        TinyMesh *mesh,
         ColorBuffer *color_buffer,
         Matrix4 *mat_world,
         Matrix4 *mat_view
     );
-    void render_mesh(ColorBuffer *color_buffer, Light *light);
+    void render_mesh(ColorBuffer *color_buffer, Light *light, TinyMesh *mesh);
 
     void handle_input(float delta_time);
 
     Light light;
-    TinyMesh mesh;
 
     RendererState renderer_state;
 

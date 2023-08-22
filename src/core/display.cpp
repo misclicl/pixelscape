@@ -209,7 +209,9 @@ void draw_triangle(
 
                 int depth_buffer_idx = static_cast<int>(p.x + color_buffer->width * p.y);
 
-                if (w_inverse < depth_buffer[depth_buffer_idx] && renderer_state->flags[USE_Z_BUFFER]) {
+                bool use_z_buffer_check = renderer_state == nullptr ? false : renderer_state->flags[USE_Z_BUFFER];
+
+                if (w_inverse < depth_buffer[depth_buffer_idx] && use_z_buffer_check) {
                     continue;
                 }
 

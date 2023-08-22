@@ -48,4 +48,7 @@ struct TinyMesh {
     Image diffuse_texture;
 };
 
+TinyMesh *ps_load_mesh(char *mesh_path, char *texture_path);
+TinyMesh *ps_get_mesh_data();
+size_t ps_get_mesh_count();
 #endif

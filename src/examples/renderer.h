@@ -9,18 +9,19 @@ enum TextureFilterMode {
 };
 
 enum RenderingFlags {
-    CULL_BACKFACE,
-    SHOW_VERTICES,
-    SHOW_TRIANGLES,
-    SHOW_WIREFRAME,
+    SHOW_VERTICES    = 0,
+    SHOW_TRIANGLES   = 1,
+    SHOW_WIREFRAME   = 2,
 
-    USE_FACE_NORMALS,
-    USE_SHADING,
-    USE_Z_BUFFER,
+    USE_FACE_NORMALS = 3,
+    USE_SHADING      = 4,
+    USE_Z_BUFFER     = 5,
+
+    CULL_BACKFACE    = 23,
 };
 
 struct RendererState {
-    // Refer to RenderingFlags struct
+    // Indexed with Rendering Flags
     std::bitset<24> flags;
     TextureFilterMode texture_filter_mode;
 };
