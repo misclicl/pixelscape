@@ -34,21 +34,27 @@ struct TinyTriangle {
 extern Vec3f cube_vertices[CUBE_VERTICES_COUNT];
 extern TinyFace cube_faces[CUBE_FACES_COUNT];
 
-struct TinyMesh {
-    TinyVertex *vertices;
+struct PS_MeshShape {
     TinyFace *faces;
-
     int face_count = 0;
     int vertex_count = 0;
+};
+
+struct TinyMesh {
+    TinyVertex *vertices;
+    PS_MeshShape *shapes;
+
+    size_t shape_count;
 
     Vec3f rotation = {};
     Vec3f translation = {};
     Vec3f scale = {1, 1, 1};
 
     Image diffuse_texture;
+    std::vector<Image> textures;
 };
 
-TinyMesh *ps_load_mesh(char *mesh_path, char *texture_path);
+TinyMesh *ps_load_mesh(char *mesh_path, std::vector<std::string> texture_paths);
 TinyMesh *ps_get_mesh_data();
 size_t ps_get_mesh_count();
 

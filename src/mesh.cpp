@@ -57,36 +57,50 @@ TinyFace cube_faces[CUBE_FACES_COUNT] = {
 static TinyMesh meshes[MAX_MESHES_COUNT];
 static size_t mesh_count = 0;
 
-TinyMesh* ps_load_mesh(char *mesh_path, char *texture_path) {
+TinyMesh* ps_load_mesh(char *mesh_path, std::vector<std::string> textures) {
     std::vector<TinyVertex> vertices;
-    std::vector<TinyFace> faces;
+    PS_Shape shapes[MAX_SHAPES_PER_MESH_COUNT];
+    size_t shape_count = 0;
 
-    parse_mesh(mesh_path, &vertices, &faces);
+    // TODO: the result is an array of meshes
+    parse_mesh(mesh_path, &vertices, shapes, &shape_count);
 
     TinyMesh mesh;
     mesh.vertices = (TinyVertex *)malloc(vertices.size() * sizeof(TinyVertex));
-    mesh.faces = (TinyFace *)malloc(faces.size() * sizeof(TinyFace));
+    mesh.shapes = (PS_MeshShape *)malloc(shape_count * sizeof(PS_MeshShape));
 
     for (int i = 0; i < vertices.size(); i++) {
         mesh.vertices[i].position = vertices[i].position;
         mesh.vertices[i].texcoords = vertices[i].texcoords;
     }
 
-    for (int i = 0; i < faces.size(); i++) {
-        mesh.faces[i] = faces[i];
+    for (int i = 0; i < shape_count; i++) {
+        auto face_count = shapes[i].faces.size();
+        // TODO: cleaup
+        mesh.shapes[i].faces = (TinyFace *)malloc(face_count * sizeof(TinyFace));
+
+        for (int j = 0; j < face_count; j++) {
+            mesh.shapes[i].faces[j] = shapes[i].faces[j];
+        }
+
+        mesh.shapes[i].face_count = face_count;
     }
 
-    mesh.face_count = faces.size();
-    mesh.vertex_count = vertices.size();
+    mesh.shape_count = shape_count;
     mesh.scale = { 1.0f, 1.0f, 1.0f };
     mesh.translation = { 0.f, 0.f, 0.f };
 
-    mesh.diffuse_texture = LoadImage(texture_path);
+    // TODO: cleanup + re-use textures
+    for (int i = 0; i < textures.size(); i++) {
+        auto image = LoadImage(textures[i].c_str());
+        mesh.textures.push_back(image);
+    }
 
     // Write to array
     meshes[mesh_count++] = mesh;
 
-    return &meshes[mesh_count - 1];
+    // return &meshes[mesh_count - 1];
+    return nullptr;
 }
 
 TinyMesh *ps_get_mesh_data() {

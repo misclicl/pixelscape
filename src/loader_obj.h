@@ -11,10 +11,17 @@
 // - include as a submodule
 // - create a .cpp file to solve duplication issue
 #define TINYOBJLOADER_IMPLEMENTATION
+#define MAX_SHAPES_PER_MESH_COUNT 5
 #include "tiny_obj_loader.h"
 
+#include "logger.h"
 #include "mesh.h"
 #include "core/tiny_math.h"
+
+struct PS_Shape {
+    std::string name;
+    std::vector<TinyFace> faces;
+};
 
 // TODO: consider updating api:
 // - Option 1. Pass Mesh * and update its fields
@@ -22,23 +29,38 @@
 static void parse_mesh(
     char *filepath,
     std::vector<TinyVertex> *vertices,
-    std::vector<TinyFace> *faces
+    PS_Shape shapes[MAX_SHAPES_PER_MESH_COUNT],
+    size_t *shapes_count
 ) {
     tinyobj::attrib_t attrib;
-    std::vector<tinyobj::shape_t> shapes;
+    std::vector<tinyobj::shape_t> mesh_shapes;
     std::vector<tinyobj::material_t> materials;
     std::string warn, err;
 
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath, "assets")) {
+    if (!tinyobj::LoadObj(&attrib, &mesh_shapes, &materials, &warn, &err, filepath, "assets")) {
         throw std::runtime_error(warn + err);
     }
 
+    /*
+     *    v – unqiue vertex ID
+     * { [vertex_key]: <position_index in vertices> }
+     */
     std::unordered_map<std::string, int> unique_vertices;
-    std::vector<uint32_t> index_buffer = {};
+
+    // Keeps position of vertices in vertex array, each 3 indices form a face
+    std::vector<uint32_t> index_buffers[MAX_SHAPES_PER_MESH_COUNT] = {};
     std::vector<float> vt = {};
 
-    for (size_t i = 0; i < shapes.size(); i++) {
-        tinyobj::shape_t *shape = &shapes[i];
+    size_t limit = mesh_shapes.size();
+    if (limit > MAX_SHAPES_PER_MESH_COUNT) {
+        log_message(LogLevel::LOG_LEVEL_WARN, "Going over the mesh limit");
+        limit = MAX_SHAPES_PER_MESH_COUNT;
+    }
+
+    for (size_t i = 0; i < limit; i++) {
+        tinyobj::shape_t *shape = &mesh_shapes[i];
+
+        shapes[i].name = shape->name;
 
         for (size_t j = 0; j < shape->mesh.indices.size(); j++) {
             auto& face = shape->mesh.indices[j]; // stores info from 'f a/b/c ...'
@@ -53,10 +75,10 @@ static void parse_mesh(
 
             vertex.texcoords = {
                 attrib.texcoords[2 * face.texcoord_index + 0],
-                // TODO: do I need -1 here?
                 1.0f - attrib.texcoords[2 * face.texcoord_index + 1]
             };
 
+            // Vertex index + Texcoord index
             std::string key = std::to_string(face.vertex_index) +
                 std::to_string(face.texcoord_index);
 
@@ -65,27 +87,26 @@ static void parse_mesh(
                 vertices->push_back(vertex);
             }
 
-            index_buffer.push_back(unique_vertices[key]);
+            index_buffers[i].push_back(unique_vertices[key]);
+
         }
     }
 
-    for (size_t i = 2; i < index_buffer.size(); i += 3) {
-        TinyFace face = {};
 
-        Color random_color = {
-            (unsigned char)(255 * random()),
-            (unsigned char)(255 * random()),
-            (unsigned char)(255 * random()),
-            255};
+    for (size_t i = 0; i < limit; i++) {
+        auto index_buffer = index_buffers[i];
+        // TODO: faces need to be split in shapes
+        for (size_t j = 2; j < index_buffer.size(); j += 3) {
+            TinyFace face = {};
 
-        face.color = ColorToInt(random_color);
+            for (int k = 0; k < 3; ++k) {
+                face.indices[k] = index_buffer[j - 2 + k];
+            }
 
-        for (int j = 0; j < 3; ++j) {
-            face.indices[j] = index_buffer[i - 2 + j];
+            shapes[i].faces.push_back(face);
         }
-
-
-        faces->push_back(face);
     }
+
+    *shapes_count = limit;
 }
 #endif

@@ -150,7 +150,7 @@ inline Vec4f transform_model_view(Vec3f in, Matrix4 *mat_world, Matrix4 *mat_vie
 };
 
 
-void Program::project_mesh(TinyMesh *mesh, ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
+void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
     face_buffer_size = 0;
 
     int half_width = color_buffer->width / 2;
@@ -160,8 +160,8 @@ void Program::project_mesh(TinyMesh *mesh, ColorBuffer *color_buffer, Matrix4 *m
     Vec4f v_camera[3];
     Matrix4 projection = mat4_get_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
 
-    for (int i = 0; i < mesh->face_count; i++) {
-        TinyFace *face = &(mesh->faces[i]);
+    for (int i = 0; i < mesh->shapes[index].face_count; i++) {
+        TinyFace *face = &(mesh->shapes[index].faces[i]);
 
         // model -> view
         for (int j = 0; j < 3; j++) {
@@ -239,7 +239,7 @@ void Program::project_mesh(TinyMesh *mesh, ColorBuffer *color_buffer, Matrix4 *m
     }
 }
 
-void Program::render_mesh(ColorBuffer *color_buffer, Light *light, TinyMesh *mesh) {
+void Program::render_mesh(ColorBuffer *color_buffer, size_t idx, Light *light, TinyMesh *mesh) {
     for (int i = 0; i < face_buffer_size; i++) {
         render_triangle(
             color_buffer,
@@ -247,7 +247,7 @@ void Program::render_mesh(ColorBuffer *color_buffer, Light *light, TinyMesh *mes
             &face_buffer[i],
             &renderer_state,
             light,
-            &mesh->diffuse_texture
+            &mesh->textures[idx]
         );
     }
 }
@@ -297,7 +297,14 @@ void Program::init(int width, int height) {
     renderer_state.flags.set(USE_Z_BUFFER, 1);
     renderer_state.flags.set(USE_SHADING, 1);
 
-    auto medic_mesh_2 = ps_load_mesh(mesh_obj_path, "assets/medic-face-diffuse.png");
+    std::vector<std::string> medic_textures = {
+        "assets/grid.png",
+        "assets/grid.png",
+        "assets/medic-face-diffuse.png",
+        "assets/medic-body-diffuse  .png",
+    };
+
+    auto medic_mesh_2 = ps_load_mesh(mesh_obj_path, medic_textures);
 
     camera_fps = {
         .position = {0.0, 0.0f, 5.0f},
@@ -354,7 +361,7 @@ void Program::run(ColorBuffer *color_buffer) {
         vec4_from_vec3(light.direction, false)
     );
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
-    draw_debug_quad(color_buffer, &mesh_data[0].diffuse_texture, depth_buffer);
+    // draw_debug_quad(color_buffer, &mesh_data[0].diffuse_texture, depth_buffer);
 
     Matrix4 mat_world;
     for (size_t i = 0; i < mesh_count; i++) {
@@ -366,8 +373,10 @@ void Program::run(ColorBuffer *color_buffer) {
             mesh->translation
         );
 
-        Program::project_mesh(mesh, color_buffer, &mat_world, &mat_view);
-        render_mesh(color_buffer, &light_pr, mesh);
+        for (int i = 0; i < mesh->shape_count; i++) {
+            Program::project_mesh(mesh, i, color_buffer, &mat_world, &mat_view);
+            render_mesh(color_buffer, i, &light_pr, mesh);
+        }
     }
 
 
