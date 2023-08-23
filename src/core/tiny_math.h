@@ -24,7 +24,7 @@ struct Vec2 {
     Vec2<T> operator+(Vec2<T> &v) { return {x + v.x, y + v.y}; }
     Vec2<T> operator-(Vec2<T> &v) { return {x - v.x, y - v.y}; }
     Vec2<T> operator-() { return {- x, -y }; }
-    Vec2<T> operator*(T &r) { return {x * r, y * r}; }
+    Vec2<T> operator*(T r) { return {x * r, y * r}; }
     bool operator==(Vec2<T> other) { return x == other.x && y == other.y; }
 };
 

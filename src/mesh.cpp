@@ -97,5 +97,15 @@ size_t ps_get_mesh_count() {
     return mesh_count;
 }
 
+Vec3f get_triangle_normal(Vec4f vertices[3]) {
+    auto a = vertices[0];
+    auto b = vertices[1];
+    auto c = vertices[2];
+    Vec3f vec_ab = vec3_from_vec4(b - a);
+    Vec3f vec_ac = vec3_from_vec4(c - a);
+
+    return Vec3f::cross(vec_ab, vec_ac).normalize();
+};
+
 // TODO: cleanup vertices/faces for each mesh
 // and UnloadImage(mesh.diffuse_texture);

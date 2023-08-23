@@ -34,13 +34,6 @@ static Color light_color = {200, 20, 180, 255};
 static TinyFPSCamera camera_fps;
 static Plane clipping_planes[6];
 
-static Vec3f get_triangle_normal(Vec4f a, Vec4f b, Vec4f c) {
-    Vec3f vec_ab = vec3_from_vec4(b - a);
-    Vec3f vec_ac = vec3_from_vec4(c - a);
-
-    return Vec3f::cross(vec_ab, vec_ac).normalize();
-};
-
 static void draw_debug_quad(
     ColorBuffer *color_buffer,
     Image *diffuse_texture,
@@ -160,14 +153,12 @@ inline Vec4f transform_model_view(Vec3f in, Matrix4 *mat_world, Matrix4 *mat_vie
 void Program::project_mesh(TinyMesh *mesh, ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
     face_buffer_size = 0;
 
-    int depth_buffer_size = color_buffer->height * color_buffer->width;
-    std::fill_n(depth_buffer, depth_buffer_size, -10000);
-
     int half_width = color_buffer->width / 2;
     int half_height = color_buffer->height / 2;
 
     Vec4f v_view[3];
     Vec4f v_camera[3];
+    Matrix4 projection = mat4_get_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
 
     for (int i = 0; i < mesh->face_count; i++) {
         TinyFace *face = &(mesh->faces[i]);
@@ -178,18 +169,10 @@ void Program::project_mesh(TinyMesh *mesh, ColorBuffer *color_buffer, Matrix4 *m
         }
 
         // SECTION: backface culling
-        Vec3f triangle_normal = get_triangle_normal(
-            v_view[0],
-            v_view[1],
-            v_view[2]
-        );
+        auto triangle_normal = get_triangle_normal(v_view);
 
         if (renderer_state.flags[CULL_BACKFACE]) {
-            auto a = vec3_from_vec4(v_view[0]);
-            auto origin = Vec3f {0.0f, 0.0f, 0.0f};
-
-            Vec3f camera_ray = origin - a;
-
+            Vec3f camera_ray = -vec3_from_vec4(v_view[0]);
             float dot_normal_cam = Vec3f::dot(camera_ray, triangle_normal);
 
             if (dot_normal_cam < 0.f) {
@@ -197,7 +180,6 @@ void Program::project_mesh(TinyMesh *mesh, ColorBuffer *color_buffer, Matrix4 *m
             }
         }
         // SECTION_END
-        Matrix4 projection = mat4_get_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
 
         TinyPolygon polygon = polygon_from_triangle(
             vec3_from_vec4(v_view[0]),
@@ -304,9 +286,10 @@ void static render_normals(
 
 void Program::init(int width, int height) {
     char *cube_obj_path = (char *)"assets/cube.obj";
-    char *mesh_obj_path = (char *)"assets/headscan.obj";
+    char *headscan_obj_path = (char *)"assets/headscan.obj";
+    char *mesh_obj_path = (char *)"assets/medic.obj";
     char *susan_obj_path = (char *)"assets/susan.obj";
-    char *test_obj_path = (char *)"assets/test.obj";
+    char *jacket_obj_path = (char *)"assets/jacket.obj";
 
     renderer_state.flags.set(SHOW_TRIANGLES, 1);
     renderer_state.flags.set(SHOW_WIREFRAME, 0);
@@ -314,9 +297,7 @@ void Program::init(int width, int height) {
     renderer_state.flags.set(USE_Z_BUFFER, 1);
     renderer_state.flags.set(USE_SHADING, 1);
 
-    auto head_mesh = ps_load_mesh(mesh_obj_path, "assets/headscan-256.png");
-    head_mesh->translation.x = 2.0f;
-    auto susan_mesh = ps_load_mesh(susan_obj_path, "assets/grid-2.png");
+    auto medic_mesh_2 = ps_load_mesh(mesh_obj_path, "assets/medic-face-diffuse.png");
 
     camera_fps = {
         .position = {0.0, 0.0f, 5.0f},
@@ -348,6 +329,9 @@ void Program::run(ColorBuffer *color_buffer) {
     float delta = GetFrameTime();
     float elapsed = GetTime();
 
+    int depth_buffer_size = color_buffer->height * color_buffer->width;
+    std::fill_n(depth_buffer, depth_buffer_size, -10000);
+
     handle_input(delta);
 
     auto mesh_data = ps_get_mesh_data();
@@ -370,7 +354,7 @@ void Program::run(ColorBuffer *color_buffer) {
         vec4_from_vec3(light.direction, false)
     );
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
-    draw_debug_quad(color_buffer, &mesh_data[1].diffuse_texture, depth_buffer);
+    draw_debug_quad(color_buffer, &mesh_data[0].diffuse_texture, depth_buffer);
 
     Matrix4 mat_world;
     for (size_t i = 0; i < mesh_count; i++) {

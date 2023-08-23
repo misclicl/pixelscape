@@ -51,4 +51,7 @@ struct TinyMesh {
 TinyMesh *ps_load_mesh(char *mesh_path, char *texture_path);
 TinyMesh *ps_get_mesh_data();
 size_t ps_get_mesh_count();
+
+Vec3f get_triangle_normal(Vec4f vertices[3]);
+
 #endif

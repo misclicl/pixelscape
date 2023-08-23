@@ -44,8 +44,8 @@ int main(int argc, char **argv) {
 
     int client_stuff_return_code = 0;
 
-
-    InitWindow(window_width, window_height, "pixelscape");
+    char title[256];
+    InitWindow(window_width, window_height, title);
     SetTargetFPS(60);
 
     TinyModel *model = new TinyModel("assets/head.obj");
@@ -76,6 +76,8 @@ int main(int argc, char **argv) {
     mesh_rendering.init(color_buffer.width, color_buffer.height);
 
     while (!WindowShouldClose()) {
+        snprintf(title, sizeof(title), "pixelscape: FPS: %d - Frame Time: %.4f ms", GetFPS(), 1000.0f/GetFPS());
+        SetWindowTitle(title);
         BeginTextureMode(render_texture);
         ClearBackground(BLACK);
 

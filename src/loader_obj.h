@@ -16,7 +16,6 @@
 #include "mesh.h"
 #include "core/tiny_math.h"
 
-// TODO: reconsider static
 // TODO: consider updating api:
 // - Option 1. Pass Mesh * and update its fields
 // - Option 2. Use index/vertex buffers instead of this
@@ -30,7 +29,7 @@ static void parse_mesh(
     std::vector<tinyobj::material_t> materials;
     std::string warn, err;
 
-    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath)) {
+    if (!tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filepath, "assets")) {
         throw std::runtime_error(warn + err);
     }
 
