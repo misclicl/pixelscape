@@ -17,17 +17,19 @@ struct TinyFace {
 // Stores values
 struct TinyVertex {
     Vec3f position = {};
-    Vec3f normals = {};
+    Vec3f normal = {};
     Vec2f texcoords = {};
 
     bool operator==(TinyVertex other) const {
-        return position == (other.position) &&
-               texcoords == other.texcoords;
+        return position == other.position &&
+               texcoords == other.texcoords &&
+               normal == other.normal;
     }
 };
 
 struct TinyTriangle {
     Vec3f vertices[3];
+    Vec3f normals[3];
     Vec2f texcoords[3];
 };
 

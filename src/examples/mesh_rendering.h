@@ -8,10 +8,11 @@
 #include "../light.h"
 #include "renderer.h"
 
+// TODO: do i need this? tinyface exists
 struct FaceBufferItem {
     Vec4f vertices[3];
+    Vec3f normals[3];
     Vec2f texcoords[3];
-    Vec3f triangle_normal;
 
     TinyColor color;
 };

@@ -51,16 +51,16 @@ static void draw_debug_quad(
         {0, 0}
     };
 
-    draw_triangle(
-        color_buffer,
-        depth_buffer,
-        verts,
-        uvs,
-        0x000000FF,
-        diffuse_texture,
-        1.0f,
-        nullptr
-    );
+    // draw_triangle(
+    //     color_buffer,
+    //     depth_buffer,
+    //     verts,
+    //     uvs,
+    //     0x000000FF,
+    //     diffuse_texture,
+    //     1.0f,
+    //     nullptr
+    // );
 
     verts[0] = {0, 0, -5, 1};
     verts[1] = {45, 0, -5, 1};
@@ -69,16 +69,16 @@ static void draw_debug_quad(
     uvs[1] = {1, 1};
     uvs[2] = {1, 0};
 
-    draw_triangle(
-        color_buffer,
-        depth_buffer,
-        verts,
-        uvs,
-        0x000000FF,
-        diffuse_texture,
-        1.0f,
-        nullptr
-    );
+    // draw_triangle(
+    //     color_buffer,
+    //     depth_buffer,
+    //     verts,
+    //     uvs,
+    //     0x000000FF,
+    //     diffuse_texture,
+    //     1.0f,
+    //     nullptr
+    // );
 }
 
 static void render_triangle(
@@ -89,7 +89,7 @@ static void render_triangle(
     Light *light,
     Image *diffuse_texture
 ) {
-    float alignment = -Vec3f::dot(light->direction.normalize(), face->triangle_normal);
+    float alignment = -Vec3f::dot(light->direction.normalize(), face->normals[0]);
 
     alignment = std::max(alignment, 0.f);
 
@@ -97,29 +97,25 @@ static void render_triangle(
         alignment:
         1.f;
 
-    TinyColor normal_color = tiny_color_from_rgb(
-        (255 * (face->triangle_normal.x + 1) / 2),
-        (255 * (face->triangle_normal.y + 1) / 2),
-        (255 * (face->triangle_normal.z + 1) / 2));
+    // TinyColor normal_color = tiny_color_from_rgb(
+    //     (255 * (face->triangle_normal.x + 1) / 2),
+    //     (255 * (face->triangle_normal.y + 1) / 2),
+    //     (255 * (face->triangle_normal.z + 1) / 2));
 
-    TinyColor base_color;
-
-    base_color = renderer_state->flags[USE_FACE_NORMALS] ?
-                 normal_color : default_color;
-
-    base_color = apply_intensity(base_color, light_color, intensity * 2);
+    // TinyColor base_color = apply_intensity(default_color, light_color, intensity * 2);
 
     // TODO: might be a good idea to move all vertex array conversion
     // over here. I already done it in SHOW_VERTICES section
     if (renderer_state->flags[SHOW_TRIANGLES]) {
+        // face->normals,
         draw_triangle(
             color_buffer,
             depth_buffer,
             face->vertices,
+            face->normals,
             face->texcoords,
-            base_color,
             diffuse_texture,
-            intensity,
+            light,
             renderer_state
         );
     }
@@ -158,7 +154,11 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
 
     Vec4f v_view[3];
     Vec4f v_camera[3];
-    Matrix4 projection = mat4_get_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
+    Vec3f normals[3];
+
+    auto mat_projection = mat4_get_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
+    auto mat_inversed = inverse_matrix(mat_view);
+    Matrix4 mat_view_tr_inv = transpose_matrix(&mat_inversed);
 
     for (int i = 0; i < mesh->shapes[index].face_count; i++) {
         TinyFace *face = &(mesh->shapes[index].faces[i]);
@@ -166,6 +166,10 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
         // model -> view
         for (int j = 0; j < 3; j++) {
             v_view[j] = transform_model_view(mesh->vertices[face->indices[j]].position, mat_world, mat_view);
+            normals[j] = vec3_from_vec4(mat4_multiply_vec4(
+                &mat_view_tr_inv,
+                vec4_from_vec3(mesh->vertices[face->indices[j]].normal, false)
+            ));
         }
 
         // SECTION: backface culling
@@ -181,13 +185,17 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
         }
         // SECTION_END
 
+        // TODO: define in the begining and write data here right away
         TinyPolygon polygon = polygon_from_triangle(
             vec3_from_vec4(v_view[0]),
             vec3_from_vec4(v_view[1]),
             vec3_from_vec4(v_view[2]),
             mesh->vertices[face->indices[0]].texcoords,
             mesh->vertices[face->indices[1]].texcoords,
-            mesh->vertices[face->indices[2]].texcoords
+            mesh->vertices[face->indices[2]].texcoords,
+            normals[0],
+            normals[1],
+            normals[2]
         );
 
         // Clip the polygon
@@ -207,7 +215,7 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
 
             for (int j = 0; j < 3; j++) {
                 // This gives me image space or NDC
-                Vec4f v_projected = mat4_multiply_projection_vec4(projection, vec4_from_vec3(v_view[j]));
+                Vec4f v_projected = mat4_multiply_projection_vec4(mat_projection, vec4_from_vec3(v_view[j]));
 
                 v_camera[j] = {
                     (v_projected.x * half_width) + half_width,
@@ -218,6 +226,7 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
             }
 
             auto texcoords = triangles[t].texcoords;
+            auto normals_cl = triangles[t].normals;
 
             // Write transformed vertices to the buffer
             FaceBufferItem f = {
@@ -231,7 +240,11 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
                     texcoords[1],
                     texcoords[2]
                 },
-                .triangle_normal = triangle_normal,
+                .normals = {
+                    normals_cl[0],
+                    normals_cl[1],
+                    normals_cl[2],
+                }
             };
 
             face_buffer[face_buffer_size++] = f;
@@ -258,29 +271,29 @@ void static render_normals(
     float *depth_buffer,
     size_t face_buffer_size
 ) {
-    for (int i = 0; i < face_buffer_size; i++) {
-        auto face = &face_buffer[i];
-        int depth_buffer_idx =
-            static_cast<int>(face->vertices[0].x + color_buffer->width * face->vertices[0].y);
+    // for (int i = 0; i < face_buffer_size; i++) {
+    //     auto face = &face_buffer[i];
+    //     int depth_buffer_idx =
+    //         static_cast<int>(face->vertices[0].x + color_buffer->width * face->vertices[0].y);
 
-        if (face->vertices[0].w < depth_buffer[depth_buffer_idx]) {
-            continue;
-        }
+    //     if (face->vertices[0].w < depth_buffer[depth_buffer_idx]) {
+    //         continue;
+    //     }
 
-        auto color = tiny_color_from_rgb(
-            (1 + face->triangle_normal.x) * 128,
-            (1 + face->triangle_normal.y) * 128,
-            (1 + face->triangle_normal.z) * 128
-        );
+    //     auto color = tiny_color_from_rgb(
+    //         (1 + face->triangle_normal.x) * 128,
+    //         (1 + face->triangle_normal.y) * 128,
+    //         (1 + face->triangle_normal.z) * 128
+    //     );
 
-        draw_line(
-            color_buffer,
-            face->vertices[0].x, face->vertices[0].y,
-            face->vertices[0].x + face->triangle_normal.x * 5,
-            face->vertices[0].y + face->triangle_normal.y * 5,
-            color
-        );
-    }
+    //     draw_line(
+    //         color_buffer,
+    //         face->vertices[0].x, face->vertices[0].y,
+    //         face->vertices[0].x + face->triangle_normal.x * 5,
+    //         face->vertices[0].y + face->triangle_normal.y * 5,
+    //         color
+    //     );
+    // }
 }
 
 
@@ -301,10 +314,11 @@ void Program::init(int width, int height) {
         "assets/grid.png",
         "assets/grid.png",
         "assets/medic-face-diffuse.png",
-        "assets/medic-body-diffuse  .png",
+        "assets/medic-body-diffuse.png",
     };
 
     auto medic_mesh_2 = ps_load_mesh(mesh_obj_path, medic_textures);
+    medic_mesh_2->translation.y = -1.0f;
 
     camera_fps = {
         .position = {0.0, 0.0f, 5.0f},
@@ -314,7 +328,8 @@ void Program::init(int width, int height) {
         .pitch_angle = 0.0f
     };
 
-    light.direction = { 1.0f, -1.0f, -1.0f };
+    // light.direction = { 1.0f, -1.0f, -1.0f };
+    light.direction = { 0.0f, -1.0f, -1.0f };
 
     depth_buffer = (float *)malloc(width * height * sizeof(float));
     face_buffer = (FaceBufferItem *)malloc(FACE_BUFFER_SIZE_LIMIT * sizeof(FaceBufferItem));

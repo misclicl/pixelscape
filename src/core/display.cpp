@@ -136,10 +136,10 @@ void draw_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
     Vec4f vertices[3],
+    Vec3f normals[3],
     Vec2f texcoords[3],
-    TinyColor face_color,
     Image *diffuse_texture,
-    float intensity,
+    Light *light,
     RendererState *renderer_state
 ) {
     int screen_width = color_buffer->width;
@@ -168,9 +168,12 @@ void draw_triangle(
     float w_inverse1 = 1 / vertices[1].w;
     float w_inverse2 = 1 / vertices[2].w;
 
+    float intensity = 1.0f;
+
     for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
         for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
             barycentric_coords(v_screen, {p.x, p.y}, &alpha, &beta, &gamma);
+
 
             if (alpha >= 0 && beta >= 0 && gamma >= 0) {
                 w_inverse = apply_barycentric(
@@ -180,9 +183,6 @@ void draw_triangle(
                     alpha, beta, gamma);
 
                 if (diffuse_texture != nullptr) {
-                    // TODO: perspective adjustment
-                    float z = 1;
-
                     // UV Interpolation of u/w and v/w
                     u = apply_barycentric(
                         texcoords[0].x / vertices[0].w,
@@ -203,9 +203,39 @@ void draw_triangle(
                     v = floor(v * (diffuse_texture->height - 1));
 
                     color = sample_color_from_texture(data, diffuse_texture, u, v, renderer_state);
-
-                    color = apply_intensity(color, {255, 255, 255, 255}, intensity);
                 }
+
+                Vec3f normal;
+                if (normals != nullptr) {
+                    // UV Interpolation of u/w and v/w
+                    normal.x = apply_barycentric(
+                        normals[0].x / vertices[0].w,
+                        normals[1].x / vertices[1].w,
+                        normals[2].x / vertices[2].w,
+                        alpha, beta, gamma);
+                    normal.y = apply_barycentric(
+                        normals[0].y / vertices[0].w,
+                        normals[1].y / vertices[1].w,
+                        normals[2].y / vertices[2].w,
+                        alpha, beta, gamma);
+                    normal.z = apply_barycentric(
+                        normals[0].z / vertices[0].w,
+                        normals[1].z / vertices[1].w,
+                        normals[2].z / vertices[2].w,
+                        alpha, beta, gamma);
+
+                    normal.x /= w_inverse;
+                    normal.y /= w_inverse;
+                    normal.z /= w_inverse;
+
+                }
+                float alignment = -Vec3f::dot(light->direction.normalize(), normal);
+                alignment = std::max(alignment, 0.f);
+                float intensity = renderer_state->flags[USE_SHADING] ?
+                    alignment:
+                    1.f;
+                color = apply_intensity(color, {255, 255, 255, 255}, intensity);
+
 
                 int depth_buffer_idx = static_cast<int>(p.x + color_buffer->width * p.y);
 
@@ -221,9 +251,15 @@ void draw_triangle(
                     -w_inverse * 255
                 );
 
+                // normals_color
+                // color = tiny_color_from_rgb(
+                //     (1 + normal.x) * 128,
+                //     (1 + normal.y) * 128,
+                //     (1 + normal.z) * 128
+                // );
+
                 depth_buffer[depth_buffer_idx] = w_inverse;
                 color_buffer->set_pixel(p.x, p.y, color);
-                // color_buffer->set_pixel(p.x, p.y, depth_buffer_color);
             }
         }
     }

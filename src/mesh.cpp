@@ -72,6 +72,7 @@ TinyMesh* ps_load_mesh(char *mesh_path, std::vector<std::string> textures) {
     for (int i = 0; i < vertices.size(); i++) {
         mesh.vertices[i].position = vertices[i].position;
         mesh.vertices[i].texcoords = vertices[i].texcoords;
+        mesh.vertices[i].normal = vertices[i].normal;
     }
 
     for (int i = 0; i < shape_count; i++) {
@@ -99,8 +100,7 @@ TinyMesh* ps_load_mesh(char *mesh_path, std::vector<std::string> textures) {
     // Write to array
     meshes[mesh_count++] = mesh;
 
-    // return &meshes[mesh_count - 1];
-    return nullptr;
+    return &meshes[mesh_count - 1];
 }
 
 TinyMesh *ps_get_mesh_data() {

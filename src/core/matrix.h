@@ -32,4 +32,7 @@ Matrix4 mat4_multiply(Matrix4 a, Matrix4 b);
 Vec4f mat4_multiply_vec4(Matrix4 *mat, Vec4f vec);
 Vec4f mat4_multiply_projection_vec4(Matrix4 mat, Vec4f vec);
 
+Matrix4 transpose_matrix(Matrix4 *other);
+Matrix4 inverse_matrix(Matrix4 *other);
+
 #endif

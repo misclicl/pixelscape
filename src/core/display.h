@@ -10,6 +10,7 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 #include "../examples/renderer.h"
+#include "../light.h"
 
 void draw_line(
     ColorBuffer *color_buffer,
@@ -34,10 +35,10 @@ void draw_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
     Vec4f vertices[3],
+    Vec3f normals[3],
     Vec2f texcoords[3],
-    TinyColor face_color,
     Image *diffuse_texture,
-    float intensity,
+    Light *light,
     RendererState *renderer_state
 );
 

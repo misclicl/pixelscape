@@ -30,12 +30,15 @@ void init_clipping_planes(
 );
 
 struct TinyPolygon {
-    Vec3f vertices[POLYGON_MAX_VERTICES];
-    Vec2f tex_cooords[POLYGON_MAX_VERTICES];
+    TinyVertex vertices[POLYGON_MAX_VERTICES];
     size_t vertex_count;
 };
 
-TinyPolygon polygon_from_triangle(Vec3f a, Vec3f b, Vec3f c, Vec2f a_uv, Vec2f b_uv, Vec2f c_uv);
+TinyPolygon polygon_from_triangle(
+    Vec3f a, Vec3f b, Vec3f c,
+    Vec2f a_uv, Vec2f b_uv, Vec2f c_uv,
+    Vec3f a_norm, Vec3f b_norm, Vec3f c_norm
+);
 void clip_polygon(TinyPolygon *p, Plane planes[6]);
 void triangulate_polygon(TinyPolygon *p, TinyTriangle *triangles, size_t *triangles_count);
 

@@ -29,7 +29,7 @@ struct PS_Shape {
 static void parse_mesh(
     char *filepath,
     std::vector<TinyVertex> *vertices,
-    PS_Shape shapes[MAX_SHAPES_PER_MESH_COUNT],
+    PS_Shape *shapes,
     size_t *shapes_count
 ) {
     tinyobj::attrib_t attrib;
@@ -78,6 +78,12 @@ static void parse_mesh(
                 1.0f - attrib.texcoords[2 * face.texcoord_index + 1]
             };
 
+            vertex.normal = {
+                attrib.normals[3 * face.normal_index + 0],
+                attrib.normals[3 * face.normal_index + 1],
+                attrib.normals[3 * face.normal_index + 2]
+            };
+
             // Vertex index + Texcoord index
             std::string key = std::to_string(face.vertex_index) +
                 std::to_string(face.texcoord_index);
@@ -95,7 +101,6 @@ static void parse_mesh(
 
     for (size_t i = 0; i < limit; i++) {
         auto index_buffer = index_buffers[i];
-        // TODO: faces need to be split in shapes
         for (size_t j = 2; j < index_buffer.size(); j += 3) {
             TinyFace face = {};
 

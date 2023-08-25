@@ -295,6 +295,69 @@ Matrix4 mat4_get_world(Vec3f scale, Vec3f rotation, Vec3f translation) {
     return out;
 }
 
+Matrix4 transpose_matrix(Matrix4 *other) {
+    return {
+        other->m0,  other->m1,  other->m2,  other->m3,
+        other->m4,  other->m5,  other->m6,  other->m7,
+        other->m8,  other->m9,  other->m10, other->m11,
+        other->m12, other->m13, other->m14, other->m15
+    };
+};
+
+Matrix4 inverse_matrix(Matrix4 *other) {
+    float m0 = other->m0;
+    float m1 = other->m1;
+    float m2 = other->m2;
+    float m3 = other->m3;
+    float m4 = other->m4;
+    float m5 = other->m5;
+    float m6 = other->m6;
+    float m7 = other->m7;
+    float m8 = other->m8;
+    float m9 = other->m9;
+    float m10 = other->m10;
+    float m11 = other->m11;
+    float m12 = other->m12;
+    float m13 = other->m13;
+    float m14 = other->m14;
+    float m15 = other->m15;
+
+    Matrix4 inv;
+
+    inv.m0  = m5 * m10 * m15 - m5 * m11 * m14 - m9 * m6 * m15 + m9 * m7 * m14 + m13 * m6 * m11 - m13 * m7 * m10;
+    inv.m4  = -m4 * m10 * m15 + m4 * m11 * m14 + m8 * m6 * m15 - m8 * m7 * m14 - m12 * m6 * m11 + m12 * m7 * m10;
+    inv.m8  = m4 * m9 * m15 - m4 * m11 * m13 - m8 * m5 * m15 + m8 * m7 * m13 + m12 * m5 * m11 - m12 * m7 * m9;
+    inv.m12 = -m4 * m9 * m14 + m4 * m10 * m13 + m8 * m5 * m14 - m8 * m6 * m13 - m12 * m5 * m10 + m12 * m6 * m9;
+    inv.m1  = -m1 * m10 * m15 + m1 * m11 * m14 + m9 * m2 * m15 - m9 * m3 * m14 - m13 * m2 * m11 + m13 * m3 * m10;
+    inv.m5  = m0 * m10 * m15 - m0 * m11 * m14 - m8 * m2 * m15 + m8 * m3 * m14 + m12 * m2 * m11 - m12 * m3 * m10;
+    inv.m9  = -m0 * m9 * m15 + m0 * m11 * m13 + m8 * m1 * m15 - m8 * m3 * m13 - m12 * m1 * m11 + m12 * m3 * m9;
+    inv.m13 = m0 * m9 * m14 - m0 * m10 * m13 - m8 * m1 * m14 + m8 * m2 * m13 + m12 * m1 * m10 - m12 * m2 * m9;
+    inv.m2  = m1 * m6 * m15 - m1 * m7 * m14 - m5 * m2 * m15 + m5 * m3 * m14 + m13 * m2 * m7 - m13 * m3 * m6;
+    inv.m6  = -m0 * m6 * m15 + m0 * m7 * m14 + m4 * m2 * m15 - m4 * m3 * m14 - m12 * m2 * m7 + m12 * m3 * m6;
+    inv.m10 = m0 * m5 * m15 - m0 * m7 * m13 - m4 * m1 * m15 + m4 * m3 * m13 + m12 * m1 * m7 - m12 * m3 * m5;
+    inv.m14 = -m0 * m5 * m14 + m0 * m6 * m13 + m4 * m1 * m14 - m4 * m2 * m13 - m12 * m1 * m6 + m12 * m2 * m5;
+    inv.m3  = -m1 * m6 * m11 + m1 * m7 * m10 + m5 * m2 * m11 - m5 * m3 * m10 - m9 * m2 * m7 + m9 * m3 * m6;
+    inv.m7  = m0 * m6 * m11 - m0 * m7 * m10 - m4 * m2 * m11 + m4 * m3 * m10 + m8 * m2 * m7 - m8 * m3 * m6;
+    inv.m11 = -m0 * m5 * m11 + m0 * m7 * m9 + m4 * m1 * m11 - m4 * m3 * m9 - m8 * m1 * m7 + m8 * m3 * m5;
+    inv.m15 = m0 * m5 * m10 - m0 * m6 * m9 - m4 * m1 * m10 + m4 * m2 * m9 + m8 * m1 * m6 - m8 * m2 * m5;
+
+    float det = m0 * inv.m0 + m1 * inv.m4 + m2 * inv.m8 + m3 * inv.m12;
+
+    if (det == 0) {
+        // Matrix is singular; cannot be inverted.
+        // Here you can either return the matrix unchanged or handle this situation in another way.
+        return *other;
+    }
+
+    det = 1.0 / det;
+
+    for (int i = 0; i < 16; i++) {
+        (&inv.m0)[i] *= det;
+    }
+
+    return inv;
+}
+
 // TODO: Try to write tests here:
 TEST_CASE("mat4_look_at basic test") {
     Vec3f up{ 0, 1, 0 };
