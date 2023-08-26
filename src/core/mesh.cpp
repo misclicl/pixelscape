@@ -1,5 +1,5 @@
-#include "mesh.h"
-#include "loader_obj.h"
+#include "./mesh.h"
+#include "../loader_obj.h"
 
 #define MAX_MESHES_COUNT 100
 

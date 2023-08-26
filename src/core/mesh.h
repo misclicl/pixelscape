@@ -1,8 +1,8 @@
 #ifndef __MESH_H__
 #define __MESH_H__
 
-#include "core/tiny_color.h"
-#include "core/tiny_math.h"
+#include "tiny_color.h"
+#include "tiny_math.h"
 #include <vector>
 
 #define CUBE_VERTICES_COUNT 8

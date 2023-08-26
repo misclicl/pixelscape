@@ -14,7 +14,6 @@
 #include "../core/tiny_color.h"
 #include "../core/tiny_math.h"
 
-#include "../mesh.h"
 #include "../logger.h"
 
 #include "mesh_rendering.h"

@@ -15,7 +15,6 @@
 #include "tiny_obj_loader.h"
 
 #include "logger.h"
-#include "mesh.h"
 #include "core/tiny_math.h"
 
 struct PS_Shape {

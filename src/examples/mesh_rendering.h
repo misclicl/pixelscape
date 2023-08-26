@@ -4,7 +4,7 @@
 
 #include "../core/color_buffer.h"
 #include "../core/matrix.h"
-#include "../mesh.h"
+#include "../core/mesh.h"
 #include "../light.h"
 
 #include "renderer.h"

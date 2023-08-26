@@ -1,5 +1,5 @@
 #include "../core/color_buffer.h"
-#include "../mesh.h"
+#include "../core/mesh.h"
 #include "../logger.h"
 
 /*

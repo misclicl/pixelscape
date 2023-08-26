@@ -2,7 +2,7 @@
 #define __CLIPPING__
 
 #include "tiny_math.h"
-#include "../mesh.h"
+#include "mesh.h"
 
 #define POLYGON_MAX_VERTICES 10
 #define POLYGON_MAX_TRIANGLES 8

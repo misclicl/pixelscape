@@ -9,9 +9,9 @@
 #include "color_buffer.h"
 #include "tiny_color.h"
 #include "tiny_math.h"
+#include "mesh.h"
 #include "../examples/renderer.h"
 #include "../light.h"
-#include "../mesh.h"
 
 void draw_line(
     ColorBuffer *color_buffer,

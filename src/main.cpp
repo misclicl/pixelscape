@@ -6,7 +6,6 @@
 #include <iostream>
 #include <vector>
 
-#include "examples/background_grid.h"
 #include "examples/draw_rectangles.h"
 #include "examples/projection.h"
 #include "examples/mesh_rendering.h"
@@ -14,7 +13,6 @@
 
 #include "examples/render_with_shading.h"
 
-#include "mesh.h"
 #include "raylib.h"
 
 #include "core/color_buffer.h"
@@ -48,20 +46,9 @@ int main(int argc, char **argv) {
     InitWindow(window_width, window_height, title);
     SetTargetFPS(60);
 
-    TinyModel *model = new TinyModel("assets/head.obj");
-
-    // Image diffuse_img = LoadImage("assets/diffuse.png");
-    Image diffuse_img = LoadImage("assets/grid.png");
-
-    Vector3 light_dir = {0, 0, -1};
-
     RenderTexture2D render_texture = LoadRenderTexture(target_render_size_x, target_render_size_y);
 
-
-    BackgroundGrid bg_grid;
-    DrawRectangles draw_rectangles;
     Projection projection;
-
 
     ProgramShading render_with_shading;
 
@@ -83,19 +70,10 @@ int main(int argc, char **argv) {
 
         color_buffer.clear(0x878787ff);
 
-        // render_vertices(diffuse_img);
-        // examples::shape_perspective();
-        // bg_grid.run(&color_buffer);
-        // draw_rectangles.run(&color_buffer);
-        // projection.run(&color_buffer, frame_counter);
-        // pixelscape::linear_transformations(&color_buffer);
-
-        // render_with_shading.run(&color_buffer, model, light_dir, diffuse_img);
         mesh_rendering.run(&color_buffer);
         draw_axis(&color_buffer);
 
         color_buffer.draw_to_texture();
-
 
         EndTextureMode();
 
@@ -114,13 +92,11 @@ int main(int argc, char **argv) {
     }
 
     UnloadRenderTexture(render_texture);
-    UnloadImage(diffuse_img);
     CloseWindow();
 
     mesh_rendering.cleanup();
     render_with_shading.cleanup();
 
-    delete model;
     free(color_buffer.pixels);
 
     return res + client_stuff_return_code; // the result from doctest is propagated here as well
