@@ -6,19 +6,17 @@
 #include <iostream>
 #include <vector>
 
+#include "raylib.h"
+
+#include "core/color_buffer.h"
+#include "core/display.h"
+
 #include "examples/draw_rectangles.h"
 #include "examples/projection.h"
 #include "examples/mesh_rendering.h"
 #include "examples/linear_transformations.h"
 
-#include "examples/render_with_shading.h"
-
-#include "raylib.h"
-
-#include "core/color_buffer.h"
-#include "core/display.h"
 #include "tooling/logger.h"
-#include "model.h"
 
 #define local_persist static;
 #define global_variable static;
@@ -49,9 +47,6 @@ int main(int argc, char **argv) {
     RenderTexture2D render_texture = LoadRenderTexture(target_render_size_x, target_render_size_y);
 
     Projection projection;
-
-    ProgramShading render_with_shading;
-
 
     ColorBuffer color_buffer;
     color_buffer.width = target_render_size_x;
@@ -95,7 +90,6 @@ int main(int argc, char **argv) {
     CloseWindow();
 
     mesh_rendering.cleanup();
-    render_with_shading.cleanup();
 
     free(color_buffer.pixels);
 
