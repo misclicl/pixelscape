@@ -14,7 +14,7 @@
 #define MAX_SHAPES_PER_MESH_COUNT 5
 #include "tiny_obj_loader.h"
 
-#include "logger.h"
+#include "tooling/logger.h"
 #include "core/tiny_math.h"
 
 struct PS_Shape {

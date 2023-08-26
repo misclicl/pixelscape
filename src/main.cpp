@@ -17,8 +17,8 @@
 
 #include "core/color_buffer.h"
 #include "core/display.h"
+#include "tooling/logger.h"
 #include "model.h"
-#include "logger.h"
 
 #define local_persist static;
 #define global_variable static;
@@ -101,4 +101,3 @@ int main(int argc, char **argv) {
 
     return res + client_stuff_return_code; // the result from doctest is propagated here as well
 }
-

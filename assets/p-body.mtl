@@ -1,0 +1,46 @@
+# Blender MTL File: 'None'
+# Material Count: 4
+
+newmtl bot_eye_lights
+Ns 16.123347
+Ka 1.000000 1.000000 1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd /Users/temp/Downloads/p-body/textures/bot_eye_lights_baseColor.png
+
+newmtl bot_eye_ring_lights.001
+Ns 359.999993
+Ka 1.000000 1.000000 1.000000
+Kd 0.828264 0.593824 0.614255
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd /Users/temp/Downloads/p-body (1)/textures/bot_eye_ring_lights.png
+
+newmtl eggbot_frame.001
+Ns 359.999993
+Ka 1.000000 1.000000 1.000000
+Kd 0.979330 0.527676 0.470737
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd /Users/temp/Downloads/p-body (1)/textures/eggbot_frame.png
+
+newmtl eggbot_shell.001
+Ns 359.999993
+Ka 1.000000 1.000000 1.000000
+Kd 0.589487 0.631854 0.802882
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.450000
+d 1.000000
+illum 2
+map_Kd p-body/shell-2.png

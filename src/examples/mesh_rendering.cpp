@@ -14,7 +14,8 @@
 #include "../core/tiny_color.h"
 #include "../core/tiny_math.h"
 
-#include "../logger.h"
+#include "../tooling/logger.h"
+#include "../tooling/render_debug_text.h"
 
 #include "mesh_rendering.h"
 #include "renderer.h"
@@ -32,53 +33,6 @@ static Color light_color = {200, 20, 180, 255};
 
 static TinyFPSCamera camera_fps;
 static Plane clipping_planes[6];
-
-static void draw_debug_quad(
-    ColorBuffer *color_buffer,
-    Image *diffuse_texture,
-    float *depth_buffer
-) {
-    Vec4f verts[3] = {
-        {0, 0, -5, 1},
-        {45, 45, -5, 1},
-        {0, 45, -5, 1}
-    };
-
-    Vec2f uvs[3] = {
-        {0, 1},
-        {1, 0},
-        {0, 0}
-    };
-
-    // draw_triangle(
-    //     color_buffer,
-    //     depth_buffer,
-    //     verts,
-    //     uvs,
-    //     0x000000FF,
-    //     diffuse_texture,
-    //     1.0f,
-    //     nullptr
-    // );
-
-    verts[0] = {0, 0, -5, 1};
-    verts[1] = {45, 0, -5, 1};
-    verts[2] = {45, 45, -5, 1};
-    uvs[0] = {0, 1};
-    uvs[1] = {1, 1};
-    uvs[2] = {1, 0};
-
-    // draw_triangle(
-    //     color_buffer,
-    //     depth_buffer,
-    //     verts,
-    //     uvs,
-    //     0x000000FF,
-    //     diffuse_texture,
-    //     1.0f,
-    //     nullptr
-    // );
-}
 
 static void render_triangle(
     ColorBuffer *color_buffer,
@@ -224,42 +178,13 @@ void Program::render_mesh(ColorBuffer *color_buffer, size_t idx, Light *light, T
     }
 }
 
-void static render_normals(
-    ColorBuffer *color_buffer,
-    TinyTriangle *face_buffer,
-    float *depth_buffer,
-    size_t face_buffer_size
-) {
-    // for (int i = 0; i < face_buffer_size; i++) {
-    //     auto face = &face_buffer[i];
-    //     int depth_buffer_idx =
-    //         static_cast<int>(face->vertices[0].x + color_buffer->width * face->vertices[0].y);
-
-    //     if (face->vertices[0].w < depth_buffer[depth_buffer_idx]) {
-    //         continue;
-    //     }
-
-    //     auto color = tiny_color_from_rgb(
-    //         (1 + face->triangle_normal.x) * 128,
-    //         (1 + face->triangle_normal.y) * 128,
-    //         (1 + face->triangle_normal.z) * 128
-    //     );
-
-    //     draw_line(
-    //         color_buffer,
-    //         face->vertices[0].x, face->vertices[0].y,
-    //         face->vertices[0].x + face->triangle_normal.x * 5,
-    //         face->vertices[0].y + face->triangle_normal.y * 5,
-    //         color
-    //     );
-    // }
-}
-
-
 void Program::init(int width, int height) {
     char *cube_obj_path = (char *)"assets/cube.obj";
     char *headscan_obj_path = (char *)"assets/headscan.obj";
-    char *mesh_obj_path = (char *)"assets/medic.obj";
+
+    char *medic_obj_path = (char *)"assets/medic.obj";
+    char *p_body_obj_path = (char *)"assets/p-body.obj";
+
     char *susan_obj_path = (char *)"assets/susan.obj";
     char *jacket_obj_path = (char *)"assets/jacket.obj";
 
@@ -270,18 +195,26 @@ void Program::init(int width, int height) {
     renderer_state.flags.set(USE_SHADING, 1);
 
     std::vector<std::string> medic_textures = {
-        "assets/grid.png",
-        "assets/grid.png",
+        "assets/medic-eyeball.png",
+        "assets/medic-eyeball.png",
         "assets/medic-face-diffuse.png",
         "assets/medic-body-diffuse.png",
     };
+    std::vector<std::string> p_body_textures = {
+        // "assets/p-body/shell-2.png",
+    };
 
-    auto medic_mesh_2 = ps_load_mesh(mesh_obj_path, medic_textures);
-    medic_mesh_2->translation.y = -1.0f;
-    medic_mesh_2->translation.z = 1.0f;
+    auto medic_mesh = ps_load_mesh(medic_obj_path, medic_textures);
+    auto p_body_mesh = ps_load_mesh(p_body_obj_path, p_body_textures);
+
+    medic_mesh->translation.y = -1.0f;
+    medic_mesh->translation.x = -1.0f;
+
+    p_body_mesh->translation.y = -1.0f;
+    p_body_mesh->translation.x = 1.0f;
 
     camera_fps = {
-        .position = {0.0, 0.0f, 5.0f},
+        .position = {0.0, 0.0f, 3.0f},
         .direction = {0.0, 0.0f, -1.0f},
         .forward_velocity = {0.0, 0.0f, 0.0f},
         .yaw_angle = 0.0f,
@@ -336,7 +269,7 @@ void Program::run(ColorBuffer *color_buffer) {
         vec4_from_vec3(light.direction, false)
     );
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
-    // draw_debug_quad(color_buffer, &mesh_data[0].diffuse_texture, depth_buffer);
+    draw_debug_quad(color_buffer, &mesh_data[0].diffuse_texture, depth_buffer);
 
     Matrix4 mat_world;
     for (size_t i = 0; i < mesh_count; i++) {
@@ -353,11 +286,6 @@ void Program::run(ColorBuffer *color_buffer) {
             render_mesh(color_buffer, i, &light_pr, mesh);
         }
     }
-
-
-    // if (renderer_state.flags[USE_FACE_NORMALS]) {
-    //     render_normals(color_buffer, face_buffer, depth_buffer, face_buffer_size);
-    // }
 }
 
 void Program::handle_input(float delta_time) {

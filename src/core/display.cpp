@@ -185,7 +185,7 @@ void draw_triangle(
 
     float alpha, beta, gamma;
     TinyColor color = 0xffffffff;
-    Color *data = (Color *)diffuse_texture->data;
+    Color *data = diffuse_texture == nullptr ? nullptr : (Color *)diffuse_texture->data;
 
     Vec2f v_screen[3] = {
         {triangle->vertices[0].position.x, triangle->vertices[0].position.y},
@@ -235,6 +235,8 @@ void draw_triangle(
                     v = floor(v * (diffuse_texture->height - 1));
 
                     color = sample_color_from_texture(data, diffuse_texture, u, v, renderer_state);
+                } else {
+                    color = tiny_color_from_rgb(200, 200, 200);
                 }
 
                 Vec3f fragment_normal = calculate_fragment_normal(
@@ -267,11 +269,13 @@ void draw_triangle(
                 );
 
                 // normals_color
-                // color = tiny_color_from_rgb(
-                //     (1 + normal.x) * 128,
-                //     (1 + normal.y) * 128,
-                //     (1 + normal.z) * 128
-                // );
+                if (renderer_state->flags[RenderingFlags::USE_FACE_NORMALS]) {
+                    color = tiny_color_from_rgb(
+                        (1 + fragment_normal.x) * 128,
+                        (1 + fragment_normal.y) * 128,
+                        (1 + fragment_normal.z) * 128
+                    );
+                }
 
                 depth_buffer[depth_buffer_idx] = w_inverse_interpl;
                 color_buffer->set_pixel(p.x, p.y, color);

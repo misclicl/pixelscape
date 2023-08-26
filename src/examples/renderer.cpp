@@ -1,6 +1,6 @@
 #include "../core/color_buffer.h"
 #include "../core/mesh.h"
-#include "../logger.h"
+#include "../tooling/logger.h"
 
 /*
  * The idea here is to render vertices that already have been projected

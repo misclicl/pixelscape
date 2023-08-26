@@ -1,11 +1,11 @@
 #ifndef __TINY_COLOR__
 #define __TINY_COLOR__
 
-#include "math.h"
+#include <cstdint>
 #include <stdlib.h>
+#include "math.h"
 #include "raylib.h"
 
-#include <cstdint>
 
 typedef uint32_t TinyColor;
 
