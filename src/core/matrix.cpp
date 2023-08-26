@@ -248,20 +248,19 @@ Matrix4 mat4_multiply(Matrix4 a, Matrix4 b) {
     };
 }
 
-Vec4f mat4_multiply_vec4(Matrix4 *mat, Vec4f v) {
+Vec4f mat4_multiply_vec4(Matrix4 mat, Vec4f v) {
     Vec4f result = {
-        .x = mat->m0 * v.x + mat->m4 * v.y + mat->m8 * v.z + mat->m12 * v.w,
-        .y = mat->m1 * v.x + mat->m5 * v.y + mat->m9 * v.z + mat->m13 * v.w,
-        .z = mat->m2 * v.x + mat->m6 * v.y + mat->m10 * v.z + mat->m14 * v.w,
-        .w = mat->m3 * v.x + mat->m7 * v.y + mat->m11 * v.z + mat->m15 * v.w,
+        .x = mat.m0 * v.x + mat.m4 * v.y + mat.m8 * v.z + mat.m12 * v.w,
+        .y = mat.m1 * v.x + mat.m5 * v.y + mat.m9 * v.z + mat.m13 * v.w,
+        .z = mat.m2 * v.x + mat.m6 * v.y + mat.m10 * v.z + mat.m14 * v.w,
+        .w = mat.m3 * v.x + mat.m7 * v.y + mat.m11 * v.z + mat.m15 * v.w,
     };
 
     return result;
 };
 
 Vec4f mat4_multiply_projection_vec4(Matrix4 mat, Vec4f vec) {
-    // TODO: remove reference from multiply function
-    Vec4f out = mat4_multiply_vec4(&mat, vec);
+    Vec4f out = mat4_multiply_vec4(mat, vec);
 
     if (out.w != 0.f) {
         out.x /= out.w;

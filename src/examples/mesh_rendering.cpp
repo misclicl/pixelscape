@@ -84,36 +84,19 @@ static void draw_debug_quad(
 static void render_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
-    FaceBufferItem *face,
+    TinyTriangle *triangle,
     RendererState *renderer_state,
     Light *light,
     Image *diffuse_texture
 ) {
-    float alignment = -Vec3f::dot(light->direction.normalize(), face->normals[0]);
-
-    alignment = std::max(alignment, 0.f);
-
-    float intensity = renderer_state->flags[USE_SHADING] ?
-        alignment:
-        1.f;
-
-    // TinyColor normal_color = tiny_color_from_rgb(
-    //     (255 * (face->triangle_normal.x + 1) / 2),
-    //     (255 * (face->triangle_normal.y + 1) / 2),
-    //     (255 * (face->triangle_normal.z + 1) / 2));
-
-    // TinyColor base_color = apply_intensity(default_color, light_color, intensity * 2);
 
     // TODO: might be a good idea to move all vertex array conversion
     // over here. I already done it in SHOW_VERTICES section
     if (renderer_state->flags[SHOW_TRIANGLES]) {
-        // face->normals,
         draw_triangle(
             color_buffer,
             depth_buffer,
-            face->vertices,
-            face->normals,
-            face->texcoords,
+            triangle,
             diffuse_texture,
             light,
             renderer_state
@@ -121,24 +104,29 @@ static void render_triangle(
     }
 
     if (renderer_state->flags[SHOW_WIREFRAME]) {
-        draw_triangle_wireframe(color_buffer, face->vertices, 0xAAAAAB00);
+        Vec4f vertices[3] =  {
+            triangle->vertices[0].position,
+            triangle->vertices[1].position,
+            triangle->vertices[2].position
+        };
+        draw_triangle_wireframe(color_buffer, vertices, 0xAAAAAB00);
     }
 
     if (renderer_state->flags[SHOW_VERTICES]) {
-        color_buffer->set_pixel(face->vertices[0].x, face->vertices[0].y, 0xF57716FF);
-        color_buffer->set_pixel(face->vertices[1].x, face->vertices[1].y, 0xF57716FF);
-        color_buffer->set_pixel(face->vertices[2].x, face->vertices[2].y, 0xF57716FF);
+        color_buffer->set_pixel(triangle->vertices[0].position.x, triangle->vertices[0].position.y, 0xF57716FF);
+        color_buffer->set_pixel(triangle->vertices[1].position.x, triangle->vertices[1].position.y, 0xF57716FF);
+        color_buffer->set_pixel(triangle->vertices[2].position.x, triangle->vertices[2].position.y, 0xF57716FF);
     }
 }
 
-inline Vec4f transform_model_view(Vec3f in, Matrix4 *mat_world, Matrix4 *mat_view) {
+inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_view) {
     Vec4f out = mat4_multiply_vec4(
-        mat_world,
-        vec4_from_vec3(in)
+        *mat_world,
+        in
     );
 
     out = mat4_multiply_vec4(
-        mat_view,
+        *mat_view,
         out
     );
 
@@ -153,7 +141,6 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
     int half_height = color_buffer->height / 2;
 
     Vec4f v_view[3];
-    Vec4f v_camera[3];
     Vec3f normals[3];
 
     auto mat_projection = mat4_get_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
@@ -167,7 +154,7 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
         for (int j = 0; j < 3; j++) {
             v_view[j] = transform_model_view(mesh->vertices[face->indices[j]].position, mat_world, mat_view);
             normals[j] = vec3_from_vec4(mat4_multiply_vec4(
-                &mat_view_tr_inv,
+                mat_view_tr_inv,
                 vec4_from_vec3(mesh->vertices[face->indices[j]].normal, false)
             ));
         }
@@ -187,9 +174,9 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
 
         // TODO: define in the begining and write data here right away
         TinyPolygon polygon = polygon_from_triangle(
-            vec3_from_vec4(v_view[0]),
-            vec3_from_vec4(v_view[1]),
-            vec3_from_vec4(v_view[2]),
+            v_view[0],
+            v_view[1],
+            v_view[2],
             mesh->vertices[face->indices[0]].texcoords,
             mesh->vertices[face->indices[1]].texcoords,
             mesh->vertices[face->indices[2]].texcoords,
@@ -206,18 +193,13 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
 
         triangulate_polygon(&polygon, triangles, &triangle_count);
 
-        for (int t = 0; t < triangle_count; t++) {
-            Vec3f v_view[3] = {
-                triangles[t].vertices[0],
-                triangles[t].vertices[1],
-                triangles[t].vertices[2]
-            };
-
-            for (int j = 0; j < 3; j++) {
+        for (int t_idx = 0; t_idx < triangle_count; t_idx++) {
+            for (int v_idx = 0; v_idx < 3; v_idx++) {
                 // This gives me image space or NDC
-                Vec4f v_projected = mat4_multiply_projection_vec4(mat_projection, vec4_from_vec3(v_view[j]));
+                Vec4f v_projected = mat4_multiply_projection_vec4(mat_projection, triangles[t_idx].vertices[v_idx].position);
 
-                v_camera[j] = {
+                // In-camera view
+                triangles[t_idx].vertices[v_idx].position = {
                     (v_projected.x * half_width) + half_width,
                     (v_projected.y * half_height) + half_height,
                     v_projected.z,
@@ -225,29 +207,7 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
                 };
             }
 
-            auto texcoords = triangles[t].texcoords;
-            auto normals_cl = triangles[t].normals;
-
-            // Write transformed vertices to the buffer
-            FaceBufferItem f = {
-                .vertices = {
-                    v_camera[0],
-                    v_camera[1],
-                    v_camera[2]
-                },
-                .texcoords = {
-                    texcoords[0],
-                    texcoords[1],
-                    texcoords[2]
-                },
-                .normals = {
-                    normals_cl[0],
-                    normals_cl[1],
-                    normals_cl[2],
-                }
-            };
-
-            face_buffer[face_buffer_size++] = f;
+            face_buffer[face_buffer_size++] = triangles[t_idx];
         }
     }
 }
@@ -267,7 +227,7 @@ void Program::render_mesh(ColorBuffer *color_buffer, size_t idx, Light *light, T
 
 void static render_normals(
     ColorBuffer *color_buffer,
-    FaceBufferItem *face_buffer,
+    TinyTriangle *face_buffer,
     float *depth_buffer,
     size_t face_buffer_size
 ) {
@@ -319,6 +279,7 @@ void Program::init(int width, int height) {
 
     auto medic_mesh_2 = ps_load_mesh(mesh_obj_path, medic_textures);
     medic_mesh_2->translation.y = -1.0f;
+    medic_mesh_2->translation.z = 1.0f;
 
     camera_fps = {
         .position = {0.0, 0.0f, 5.0f},
@@ -332,7 +293,7 @@ void Program::init(int width, int height) {
     light.direction = { 0.0f, -1.0f, -1.0f };
 
     depth_buffer = (float *)malloc(width * height * sizeof(float));
-    face_buffer = (FaceBufferItem *)malloc(FACE_BUFFER_SIZE_LIMIT * sizeof(FaceBufferItem));
+    face_buffer = (TinyTriangle *)malloc(FACE_BUFFER_SIZE_LIMIT * sizeof(TinyTriangle));
 
     aspect_ratio = static_cast<float>(height) / width;
     float aspect_ratio_x = 1 / aspect_ratio;
@@ -363,7 +324,7 @@ void Program::run(ColorBuffer *color_buffer) {
     Vec3f target = {0.0f, 0.0f, -1.0f};
 
     Matrix4 camera_rotation = mat4_get_rotation(camera_fps.pitch_angle, camera_fps.yaw_angle, 0);
-    camera_fps.direction = vec3_from_vec4(mat4_multiply_vec4(&camera_rotation, vec4_from_vec3(target)));
+    camera_fps.direction = vec3_from_vec4(mat4_multiply_vec4(camera_rotation, vec4_from_vec3(target)));
     target = camera_fps.position + camera_fps.direction;
 
     Matrix4 mat_view = mat4_look_at(
@@ -372,7 +333,7 @@ void Program::run(ColorBuffer *color_buffer) {
         {0.0f, 1.0f, 0.0f}
     );
     Vec4f light_direction_projected = mat4_multiply_vec4(
-        &mat_view,
+        mat_view,
         vec4_from_vec3(light.direction, false)
     );
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
@@ -418,7 +379,6 @@ void Program::handle_input(float delta_time) {
             static_cast<int>(renderer_state.flags[USE_FACE_NORMALS])
         );
     }
-    // TODO: replace everything with logger
     if (IsKeyPressed(KEY_ZERO)) {
         renderer_state.flags.flip(USE_SHADING);
         log_message(

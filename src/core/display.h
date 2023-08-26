@@ -11,6 +11,7 @@
 #include "tiny_math.h"
 #include "../examples/renderer.h"
 #include "../light.h"
+#include "../mesh.h"
 
 void draw_line(
     ColorBuffer *color_buffer,
@@ -34,9 +35,7 @@ void draw_triangle_wireframe(
 void draw_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
-    Vec4f vertices[3],
-    Vec3f normals[3],
-    Vec2f texcoords[3],
+    TinyTriangle *triangle,
     Image *diffuse_texture,
     Light *light,
     RendererState *renderer_state

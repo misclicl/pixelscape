@@ -70,7 +70,8 @@ static void parse_mesh(
             vertex.position = {
                 attrib.vertices[3 * face.vertex_index + 0],
                 attrib.vertices[3 * face.vertex_index + 1],
-                attrib.vertices[3 * face.vertex_index + 2]
+                attrib.vertices[3 * face.vertex_index + 2],
+                1
             };
 
             vertex.texcoords = {

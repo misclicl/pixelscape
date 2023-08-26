@@ -35,7 +35,7 @@ struct TinyPolygon {
 };
 
 TinyPolygon polygon_from_triangle(
-    Vec3f a, Vec3f b, Vec3f c,
+    Vec4f a, Vec4f b, Vec4f c,
     Vec2f a_uv, Vec2f b_uv, Vec2f c_uv,
     Vec3f a_norm, Vec3f b_norm, Vec3f c_norm
 );

@@ -132,12 +132,44 @@ static TinyColor sample_color_from_texture(
     }
 }
 
+inline static Vec3f calculate_fragment_normal(
+    TinyTriangle * triangle,
+    float w_inverse0,
+    float w_inverse1,
+    float w_inverse2,
+    float w_inverse,
+    float alpha,
+    float beta,
+    float gamma
+) {
+    Vec3f fragment_normal = {};
+    fragment_normal.x = apply_barycentric(
+        triangle->vertices[0].normal.x * w_inverse0,
+        triangle->vertices[1].normal.x * w_inverse1,
+        triangle->vertices[2].normal.x * w_inverse2,
+        alpha, beta, gamma);
+    fragment_normal.y = apply_barycentric(
+        triangle->vertices[0].normal.y * w_inverse0,
+        triangle->vertices[1].normal.y * w_inverse1,
+        triangle->vertices[2].normal.y * w_inverse2,
+        alpha, beta, gamma);
+    fragment_normal.z = apply_barycentric(
+        triangle->vertices[0].normal.z * w_inverse0,
+        triangle->vertices[1].normal.z * w_inverse1,
+        triangle->vertices[2].normal.z * w_inverse2,
+        alpha, beta, gamma);
+
+    fragment_normal.x /= w_inverse;
+    fragment_normal.y /= w_inverse;
+    fragment_normal.z /= w_inverse;
+
+    return fragment_normal;
+}
+
 void draw_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
-    Vec4f vertices[3],
-    Vec3f normals[3],
-    Vec2f texcoords[3],
+    TinyTriangle *triangle,
     Image *diffuse_texture,
     Light *light,
     RendererState *renderer_state
@@ -150,23 +182,23 @@ void draw_triangle(
     Vec2f p;
 
     float u, v; // Stores interpolated values
-    float w_inverse; // Holds depth of a pixel
 
     float alpha, beta, gamma;
     TinyColor color = 0xffffffff;
     Color *data = (Color *)diffuse_texture->data;
 
     Vec2f v_screen[3] = {
-        {(vertices[0].x), (vertices[0].y)},
-        {(vertices[1].x), (vertices[1].y)},
-        {(vertices[2].x), (vertices[2].y)}
+        {triangle->vertices[0].position.x, triangle->vertices[0].position.y},
+        {triangle->vertices[1].position.x, triangle->vertices[1].position.y},
+        {triangle->vertices[2].position.x, triangle->vertices[2].position.y},
     };
 
     triangle_bb(v_screen, boundaries, screen_width, screen_height);
 
-    float w_inverse0 = 1 / vertices[0].w;
-    float w_inverse1 = 1 / vertices[1].w;
-    float w_inverse2 = 1 / vertices[2].w;
+    float w_inverse0 = 1 / triangle->vertices[0].position.w;
+    float w_inverse1 = 1 / triangle->vertices[1].position.w;
+    float w_inverse2 = 1 / triangle->vertices[2].position.w;
+    float w_inverse_interpl; // Holds depth of a pixel
 
     float intensity = 1.0f;
 
@@ -174,9 +206,8 @@ void draw_triangle(
         for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
             barycentric_coords(v_screen, {p.x, p.y}, &alpha, &beta, &gamma);
 
-
             if (alpha >= 0 && beta >= 0 && gamma >= 0) {
-                w_inverse = apply_barycentric(
+                w_inverse_interpl = apply_barycentric(
                     w_inverse0,
                     w_inverse1,
                     w_inverse2,
@@ -185,18 +216,19 @@ void draw_triangle(
                 if (diffuse_texture != nullptr) {
                     // UV Interpolation of u/w and v/w
                     u = apply_barycentric(
-                        texcoords[0].x / vertices[0].w,
-                        texcoords[1].x / vertices[1].w,
-                        texcoords[2].x / vertices[2].w,
-                        alpha, beta, gamma);
-                    v = apply_barycentric(
-                        texcoords[0].y / vertices[0].w,
-                        texcoords[1].y / vertices[1].w,
-                        texcoords[2].y / vertices[2].w,
+                        triangle->vertices[0].texcoords.x * w_inverse0,
+                        triangle->vertices[1].texcoords.x * w_inverse1,
+                        triangle->vertices[2].texcoords.x * w_inverse2,
                         alpha, beta, gamma);
 
-                    u /= w_inverse;
-                    v /= w_inverse;
+                    v = apply_barycentric(
+                        triangle->vertices[0].texcoords.y * w_inverse0,
+                        triangle->vertices[1].texcoords.y * w_inverse1,
+                        triangle->vertices[2].texcoords.y * w_inverse2,
+                        alpha, beta, gamma);
+
+                    u /= w_inverse_interpl;
+                    v /= w_inverse_interpl;
 
                     // in-texture coords
                     u = floor(u * (diffuse_texture->width - 1));
@@ -205,31 +237,14 @@ void draw_triangle(
                     color = sample_color_from_texture(data, diffuse_texture, u, v, renderer_state);
                 }
 
-                Vec3f normal;
-                if (normals != nullptr) {
-                    // UV Interpolation of u/w and v/w
-                    normal.x = apply_barycentric(
-                        normals[0].x / vertices[0].w,
-                        normals[1].x / vertices[1].w,
-                        normals[2].x / vertices[2].w,
-                        alpha, beta, gamma);
-                    normal.y = apply_barycentric(
-                        normals[0].y / vertices[0].w,
-                        normals[1].y / vertices[1].w,
-                        normals[2].y / vertices[2].w,
-                        alpha, beta, gamma);
-                    normal.z = apply_barycentric(
-                        normals[0].z / vertices[0].w,
-                        normals[1].z / vertices[1].w,
-                        normals[2].z / vertices[2].w,
-                        alpha, beta, gamma);
+                Vec3f fragment_normal = calculate_fragment_normal(
+                    triangle,
+                    w_inverse0, w_inverse1, w_inverse2,
+                    w_inverse_interpl,
+                    alpha, beta, gamma
+                );
 
-                    normal.x /= w_inverse;
-                    normal.y /= w_inverse;
-                    normal.z /= w_inverse;
-
-                }
-                float alignment = -Vec3f::dot(light->direction.normalize(), normal);
+                float alignment = -Vec3f::dot(light->direction.normalize(), fragment_normal);
                 alignment = std::max(alignment, 0.f);
                 float intensity = renderer_state->flags[USE_SHADING] ?
                     alignment:
@@ -241,14 +256,14 @@ void draw_triangle(
 
                 bool use_z_buffer_check = renderer_state == nullptr ? false : renderer_state->flags[USE_Z_BUFFER];
 
-                if (w_inverse < depth_buffer[depth_buffer_idx] && use_z_buffer_check) {
+                if (w_inverse_interpl < depth_buffer[depth_buffer_idx] && use_z_buffer_check) {
                     continue;
                 }
 
                 auto depth_buffer_color = tiny_color_from_rgb(
-                    -w_inverse * 255,
-                    -w_inverse * 255,
-                    -w_inverse * 255
+                    -w_inverse_interpl * 255,
+                    -w_inverse_interpl * 255,
+                    -w_inverse_interpl * 255
                 );
 
                 // normals_color
@@ -258,7 +273,7 @@ void draw_triangle(
                 //     (1 + normal.z) * 128
                 // );
 
-                depth_buffer[depth_buffer_idx] = w_inverse;
+                depth_buffer[depth_buffer_idx] = w_inverse_interpl;
                 color_buffer->set_pixel(p.x, p.y, color);
             }
         }

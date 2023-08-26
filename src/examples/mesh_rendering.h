@@ -6,16 +6,8 @@
 #include "../core/matrix.h"
 #include "../mesh.h"
 #include "../light.h"
+
 #include "renderer.h"
-
-// TODO: do i need this? tinyface exists
-struct FaceBufferItem {
-    Vec4f vertices[3];
-    Vec3f normals[3];
-    Vec2f texcoords[3];
-
-    TinyColor color;
-};
 
 struct Program {
     void init(int width, int height);
@@ -42,7 +34,7 @@ struct Program {
 
     RendererState renderer_state;
 
-    FaceBufferItem *face_buffer;
+    TinyTriangle *face_buffer;
     size_t face_buffer_size = 0;
 
     float *depth_buffer;

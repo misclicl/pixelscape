@@ -47,19 +47,19 @@ static void clip_polygon_against_plane(TinyPolygon *polygon, Plane plane) {
     Vec3f plane_point = plane.position;
     Vec3f plane_normal = plane.normal;
 
-    Vec3f prev_vertex = polygon->vertices[polygon->vertex_count - 1].position;
+    Vec4f prev_vertex = polygon->vertices[polygon->vertex_count - 1].position;
     Vec3f prev_normal = polygon->vertices[polygon->vertex_count - 1].normal;
     Vec2f prev_texcoords = polygon->vertices[polygon->vertex_count - 1].texcoords;
 
-    float dot_prev = Vec3f::dot(prev_vertex - plane_point, plane_normal);
+    float dot_prev = Vec3f::dot(vec3_from_vec4(prev_vertex) - plane_point, plane_normal);
     float dot_current;
 
     for (size_t i = 0; i < polygon->vertex_count; i++) {
-        Vec3f curr_vertex = polygon->vertices[i].position;
+        Vec4f curr_vertex = polygon->vertices[i].position;
         Vec3f curr_normal = polygon->vertices[i].normal;
         Vec2f curr_texcoords = polygon->vertices[i].texcoords;
 
-        dot_current = Vec3f::dot(curr_vertex - plane_point, plane_normal);
+        dot_current = Vec3f::dot(vec3_from_vec4(curr_vertex) - plane_point, plane_normal);
 
         // SECTION: Intersection point
         if (dot_current * dot_prev < 0) {
@@ -106,39 +106,31 @@ void triangulate_polygon(
         size_t i1 = i + 1;
         size_t i2 = i + 2;
 
-        triangles[i].vertices[0]  = polygon->vertices[i0].position;
-        triangles[i].normals[0]   = polygon->vertices[i0].normal;
-        triangles[i].texcoords[0] = polygon->vertices[i0].texcoords;
-
-        triangles[i].vertices[1]  = polygon->vertices[i1].position;
-        triangles[i].normals[1]   = polygon->vertices[i1].normal;
-        triangles[i].texcoords[1] = polygon->vertices[i1].texcoords;
-
-        triangles[i].vertices[2]  = polygon->vertices[i2].position;
-        triangles[i].normals[2]   = polygon->vertices[i2].normal;
-        triangles[i].texcoords[2] = polygon->vertices[i2].texcoords;
+        triangles[i].vertices[0] = polygon->vertices[i0];
+        triangles[i].vertices[1] = polygon->vertices[i1];
+        triangles[i].vertices[2] = polygon->vertices[i2];
     }
 
     *triangle_count = polygon->vertex_count - 2;
 }
 
 TinyPolygon polygon_from_triangle(
-    Vec3f a, Vec3f b, Vec3f c,
+    Vec4f a_pos, Vec4f b_pos, Vec4f c_pos,
     Vec2f a_uv, Vec2f b_uv, Vec2f c_uv,
     Vec3f a_norm, Vec3f b_norm, Vec3f c_norm
 ) {
     return {
         .vertices = {
             {
-                .position = a,
+                .position = a_pos,
                 .texcoords = a_uv,
                 .normal = a_norm,
             }, {
-                .position = b,
+                .position = b_pos,
                 .texcoords = b_uv,
                 .normal = b_norm,
             }, {
-                .position = c,
+                .position = c_pos,
                 .texcoords = c_uv,
                 .normal = c_norm,
             }

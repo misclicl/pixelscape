@@ -16,7 +16,7 @@ struct TinyFace {
 
 // Stores values
 struct TinyVertex {
-    Vec3f position = {};
+    Vec4f position = {};
     Vec3f normal = {};
     Vec2f texcoords = {};
 
@@ -28,9 +28,7 @@ struct TinyVertex {
 };
 
 struct TinyTriangle {
-    Vec3f vertices[3];
-    Vec3f normals[3];
-    Vec2f texcoords[3];
+    TinyVertex vertices[3];
 };
 
 extern Vec3f cube_vertices[CUBE_VERTICES_COUNT];
