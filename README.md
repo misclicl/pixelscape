@@ -1,5 +1,9 @@
 <img width="540" alt="Screenshot 2023-09-26 at 12 51 40" src="https://github.com/misclicl/pixelscape/assets/84678137/23d86321-bad5-4736-96b5-1e2ff5d6b7d7">
 
+# Pixelscape
+
+A software rasteriser made with raylib.
+
 ## How to build
 
 ``` bash
