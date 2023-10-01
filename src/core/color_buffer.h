@@ -19,3 +19,4 @@ private:
     uint32_t *get_buffer_pixel(int idx);
 };
 #endif
+

@@ -1,0 +1,9 @@
+{
+    "files.associations": {
+        "vector": "cpp",
+        "cstdlib": "cpp",
+        "cstdio": "cpp",
+        "array": "cpp",
+        "algorithm": "cpp"
+    }
+}

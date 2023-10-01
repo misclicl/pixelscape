@@ -7,6 +7,7 @@
 #include "raylib.h"
 
 #include "color_buffer.h"
+#include "depth_buffer.h"
 #include "tiny_color.h"
 #include "tiny_math.h"
 #include "mesh.h"
@@ -34,7 +35,7 @@ void draw_triangle_wireframe(
 
 void draw_triangle(
     ColorBuffer *color_buffer,
-    float *depth_buffer,
+    DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
     Image *diffuse_texture,
     Light *light,

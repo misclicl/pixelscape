@@ -71,9 +71,9 @@ static void triangle_bb(Vec2f vertices[3], int boundaries[4], int screen_width, 
     int y_end = ceil(std::max(vertices[0].y, std::max(vertices[1].y, vertices[2].y)));
 
     boundaries[0] = std::max(0, x_start);
-    boundaries[1] = std::min(screen_width, x_end);
+    boundaries[1] = std::min(screen_width - 1, x_end);
     boundaries[2] = std::max(0, y_start);
-    boundaries[3] = std::min(screen_height, y_end);
+    boundaries[3] = std::min(screen_height - 1, y_end);
 }
 
 // static void barycentric_coords(Vec2<int> vertices[3], Vec2<int> p, float *alpha, float *beta, float *gamma) {
@@ -179,7 +179,7 @@ float clamp(float val, float min_val, float max_val) {
 
 void draw_triangle(
     ColorBuffer *color_buffer,
-    float *depth_buffer,
+    DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
     Image *diffuse_texture,
     Light *light,
@@ -265,11 +265,9 @@ void draw_triangle(
                 color = apply_intensity(color, {255, 255, 255, 255}, intensity);
 
 
-                int depth_buffer_idx = static_cast<int>(p.x + color_buffer->width * p.y);
-
                 bool use_z_buffer_check = renderer_state == nullptr ? false : renderer_state->flags[USE_Z_BUFFER];
-
-                if (w_inverse_interpl < depth_buffer[depth_buffer_idx] && use_z_buffer_check) {
+                auto depth_buffer_value = *buffer_pixel_get(depth_buffer, p.x, p.y);
+                if (w_inverse_interpl < depth_buffer_value && use_z_buffer_check) {
                     continue;
                 }
 
@@ -303,7 +301,7 @@ void draw_triangle(
                     );
                 }
 
-                depth_buffer[depth_buffer_idx] = w_inverse_interpl;
+                depth_buffer_set(depth_buffer, p.x, p.y, w_inverse_interpl);
                 color_buffer->set_pixel(p.x, p.y, color);
             }
         }

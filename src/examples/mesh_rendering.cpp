@@ -37,7 +37,7 @@ static Plane clipping_planes[6];
 
 static void render_triangle(
     ColorBuffer *color_buffer,
-    float *depth_buffer,
+    DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
     RendererState *renderer_state,
     Light *light,
@@ -227,7 +227,11 @@ void Program::init(int width, int height) {
     // light.direction = { 1.0f, -1.0f, -1.0f };
     light.direction = { 0.0f, -1.0f, -1.0f };
 
-    depth_buffer = (float *)malloc(width * height * sizeof(float));
+    depth_buffer = depth_buffer_create(width, height, -10000);
+    if (!depth_buffer) {
+        log_message(LogLevel::LOG_LEVEL_ERROR, "Failed to create depth buffer");
+    }
+
     face_buffer = (TinyTriangle *)malloc(FACE_BUFFER_SIZE_LIMIT * sizeof(TinyTriangle));
 
     aspect_ratio = static_cast<float>(height) / width;
@@ -247,12 +251,9 @@ void Program::run(ColorBuffer *color_buffer) {
     float delta = GetFrameTime();
     float elapsed = GetTime();
 
-    int sm_depth_buffer_size = color_buffer->height * color_buffer->width;
-    int depth_buffer_size = color_buffer->height * color_buffer->width;
-
-    std::fill_n(depth_buffer, depth_buffer_size, -10000);
-
     handle_input(delta);
+
+    depth_buffer_clear(depth_buffer, -10000);
 
     auto mesh_data = ps_get_mesh_data();
     auto mesh_count = ps_get_mesh_count();
@@ -274,7 +275,6 @@ void Program::run(ColorBuffer *color_buffer) {
         vec4_from_vec3(light.direction, false)
     );
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
-    draw_debug_quad(color_buffer, &mesh_data[0].diffuse_texture, depth_buffer);
 
     Matrix4 mat_world;
     for (size_t i = 0; i < mesh_count; i++) {
@@ -408,6 +408,6 @@ void Program::handle_input(float delta_time) {
 }
 
 void Program::cleanup() {
-    free(depth_buffer);
+    depth_buffer_destroy(depth_buffer);
     free(face_buffer);
 }

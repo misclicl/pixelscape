@@ -3,6 +3,7 @@
 #include <stdint.h>
 
 #include "../core/color_buffer.h"
+#include "../core/depth_buffer.h"
 #include "../core/matrix.h"
 #include "../core/mesh.h"
 #include "../light.h"
@@ -34,8 +35,8 @@ struct Program {
 
     RendererState renderer_state;
 
-    TinyTriangle *face_buffer;
+    TinyTriangle *face_buffer = nullptr;
     size_t face_buffer_size = 0;
 
-    float *depth_buffer;
+    DepthBuffer *depth_buffer = nullptr;
 };
