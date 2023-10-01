@@ -138,15 +138,18 @@ Matrix4 mat4_get_projection(float aspect_ratio, float fov, float z_near, float z
     // |                     0  1/tan(theta/2)        0                 0 |
     // |                     0               0  -lambda  -lambda * z_near |
     // |                     0               0       -1                 0 |
-    float lambda = z_far / (z_far - z_near);
+    float lambda = (z_far + z_near) / (z_far - z_near);
     float scale = (1 / tan(fov/2));
     Matrix4 out = {};
 
     out.m0 = aspect_ratio * scale;
     out.m5 = scale;
-    out.m10 = lambda;
     out.m11 = -1;
-    out.m14 = -lambda * z_near;
+
+    out.m10 = lambda;
+
+    float depth_offset = (-2 * z_far * z_near) / (z_far - z_near);
+    out.m14 = depth_offset;
 
     return out;
 }

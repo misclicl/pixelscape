@@ -9,15 +9,16 @@ enum TextureFilterMode {
 };
 
 enum RenderingFlags {
-    SHOW_VERTICES    = 0,
-    SHOW_TRIANGLES   = 1,
-    SHOW_WIREFRAME   = 2,
+    DRAW_VERTICES,
+    DRAW_TRIANGLES,
+    DRAW_WIREFRAME,
+    DRAW_DEPTH_BUFFER,
 
-    USE_FACE_NORMALS = 3,
-    USE_SHADING      = 4,
-    USE_Z_BUFFER     = 5,
+    USE_FACE_NORMALS,
+    USE_SHADING,
+    USE_Z_BUFFER,
 
-    CULL_BACKFACE    = 23,
+    CULL_BACKFACE,
 };
 
 struct RendererState {

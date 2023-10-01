@@ -18,13 +18,14 @@
 #include "../tooling/render_debug_text.h"
 
 #include "mesh_rendering.h"
+#include "raymath.h"
 #include "renderer.h"
 
 // TODO: Prevent crashing if overflows
 #define FACE_BUFFER_SIZE_LIMIT 250000
 #define ROTATION_SPEED 0.2f
 #define Z_NEAR -0.1f
-#define Z_FAR -10000.0f
+#define Z_FAR -30.0f
 
 static float camera_fov_y = 59 * DEG2RAD;
 static float aspect_ratio = 1;
@@ -45,7 +46,7 @@ static void render_triangle(
 
     // TODO: might be a good idea to move all vertex array conversion
     // over here. I already done it in SHOW_VERTICES section
-    if (renderer_state->flags[SHOW_TRIANGLES]) {
+    if (renderer_state->flags[DRAW_TRIANGLES]) {
         draw_triangle(
             color_buffer,
             depth_buffer,
@@ -56,7 +57,7 @@ static void render_triangle(
         );
     }
 
-    if (renderer_state->flags[SHOW_WIREFRAME]) {
+    if (renderer_state->flags[DRAW_WIREFRAME]) {
         Vec4f vertices[3] =  {
             triangle->vertices[0].position,
             triangle->vertices[1].position,
@@ -65,7 +66,7 @@ static void render_triangle(
         draw_triangle_wireframe(color_buffer, vertices, 0xAAAAAB00);
     }
 
-    if (renderer_state->flags[SHOW_VERTICES]) {
+    if (renderer_state->flags[DRAW_VERTICES]) {
         color_buffer->set_pixel(triangle->vertices[0].position.x, triangle->vertices[0].position.y, 0xF57716FF);
         color_buffer->set_pixel(triangle->vertices[1].position.x, triangle->vertices[1].position.y, 0xF57716FF);
         color_buffer->set_pixel(triangle->vertices[2].position.x, triangle->vertices[2].position.y, 0xF57716FF);
@@ -88,10 +89,10 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
 
 
 void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
-    face_buffer_size = 0;
+    size_t face_buffer_idx = 0;
 
-    int half_width = color_buffer->width / 2;
-    int half_height = color_buffer->height / 2;
+    int target_half_width = color_buffer->width / 2;
+    int target_half_height = color_buffer->height / 2;
 
     Vec4f v_view[3];
     Vec3f normals[3];
@@ -148,21 +149,23 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
 
         for (int t_idx = 0; t_idx < triangle_count; t_idx++) {
             for (int v_idx = 0; v_idx < 3; v_idx++) {
-                // This gives me image space or NDC
+                // This gives me the image space or NDC
                 Vec4f v_projected = mat4_multiply_projection_vec4(mat_projection, triangles[t_idx].vertices[v_idx].position);
 
                 // In-camera view
                 triangles[t_idx].vertices[v_idx].position = {
-                    (v_projected.x * half_width) + half_width,
-                    (v_projected.y * half_height) + half_height,
-                    v_projected.z,
+                    (v_projected.x * target_half_width) + target_half_width,
+                    (v_projected.y * target_half_height) + target_half_height,
+                    v_projected.z, // z must be in NDC
                     v_projected.w,
                 };
             }
 
-            face_buffer[face_buffer_size++] = triangles[t_idx];
+            face_buffer[face_buffer_idx++] = triangles[t_idx];
         }
     }
+
+    face_buffer_size = face_buffer_idx;
 }
 
 void Program::render_mesh(ColorBuffer *color_buffer, size_t idx, Light *light, TinyMesh *mesh) {
@@ -188,8 +191,8 @@ void Program::init(int width, int height) {
     char *susan_obj_path = (char *)"assets/susan.obj";
     char *jacket_obj_path = (char *)"assets/jacket.obj";
 
-    renderer_state.flags.set(SHOW_TRIANGLES, 1);
-    renderer_state.flags.set(SHOW_WIREFRAME, 0);
+    renderer_state.flags.set(DRAW_TRIANGLES, 1);
+    renderer_state.flags.set(DRAW_WIREFRAME, 0);
     renderer_state.flags.set(CULL_BACKFACE, 1);
     renderer_state.flags.set(USE_Z_BUFFER, 1);
     renderer_state.flags.set(USE_SHADING, 1);
@@ -201,7 +204,7 @@ void Program::init(int width, int height) {
         "assets/medic-body-diffuse.png",
     };
     std::vector<std::string> p_body_textures = {
-        // "assets/p-body/shell-2.png",
+        "assets/p-body/shell-2.png",
     };
 
     auto medic_mesh = ps_load_mesh(medic_obj_path, medic_textures);
@@ -244,7 +247,9 @@ void Program::run(ColorBuffer *color_buffer) {
     float delta = GetFrameTime();
     float elapsed = GetTime();
 
+    int sm_depth_buffer_size = color_buffer->height * color_buffer->width;
     int depth_buffer_size = color_buffer->height * color_buffer->width;
+
     std::fill_n(depth_buffer, depth_buffer_size, -10000);
 
     handle_input(delta);
@@ -322,18 +327,26 @@ void Program::handle_input(float delta_time) {
             static_cast<int>(renderer_state.flags[USE_Z_BUFFER])
         );
     }
+    if (IsKeyPressed(KEY_EIGHT)) {
+        renderer_state.flags.flip(DRAW_DEPTH_BUFFER);
+        log_message(
+            LogLevel::LOG_LEVEL_DEBUG,
+            "draw z-buffer: %d",
+            static_cast<int>(renderer_state.flags[DRAW_DEPTH_BUFFER])
+        );
+    }
 
     if (IsKeyPressed(KEY_ONE)) {
-        renderer_state.flags.flip(SHOW_VERTICES);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display vertices: %d", static_cast<int>(renderer_state.flags[SHOW_VERTICES]));
+        renderer_state.flags.flip(DRAW_VERTICES);
+        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display vertices: %d", static_cast<int>(renderer_state.flags[DRAW_VERTICES]));
     }
     if (IsKeyPressed(KEY_TWO)) {
-        renderer_state.flags.flip(SHOW_WIREFRAME);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display wireframe: %d", static_cast<int>(renderer_state.flags[SHOW_WIREFRAME]));
+        renderer_state.flags.flip(DRAW_WIREFRAME);
+        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display wireframe: %d", static_cast<int>(renderer_state.flags[DRAW_WIREFRAME]));
     }
     if (IsKeyPressed(KEY_THREE)) {
-        renderer_state.flags.flip(SHOW_TRIANGLES);
-        std::cout << "Display triangles: " << renderer_state.flags[SHOW_TRIANGLES] << "\n";
+        renderer_state.flags.flip(DRAW_TRIANGLES);
+        std::cout << "Display triangles: " << renderer_state.flags[DRAW_TRIANGLES] << "\n";
     }
 
     // SECTION: Camera rotation

@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <array>
+#include <cstdio>
 #include <cstdlib>
 #include <vector>
 
@@ -166,6 +168,15 @@ inline static Vec3f calculate_fragment_normal(
     return fragment_normal;
 }
 
+void depth_testing() {
+}
+
+float clamp(float val, float min_val, float max_val) {
+    if (val < min_val) return min_val;
+    if (val > max_val) return max_val;
+    return val;
+}
+
 void draw_triangle(
     ColorBuffer *color_buffer,
     float *depth_buffer,
@@ -262,11 +273,18 @@ void draw_triangle(
                     continue;
                 }
 
-                auto depth_buffer_color = tiny_color_from_rgb(
-                    -w_inverse_interpl * 255,
-                    -w_inverse_interpl * 255,
-                    -w_inverse_interpl * 255
-                );
+                float color_float = w_inverse_interpl * 255.0;
+                uint8_t z_buffer_pixel_val = round(clamp(color_float, 0.0, 255.0));
+
+                auto z_value = apply_barycentric(
+                    triangle->vertices[0].position.z * w_inverse0,
+                    triangle->vertices[1].position.z * w_inverse1,
+                    triangle->vertices[2].position.z * w_inverse2,
+                    alpha, beta, gamma);
+                z_value /= -w_inverse_interpl;
+                z_value = 1 - z_value;
+
+
 
                 // normals_color
                 if (renderer_state->flags[RenderingFlags::USE_FACE_NORMALS]) {
@@ -274,6 +292,14 @@ void draw_triangle(
                         (1 + fragment_normal.x) * 128,
                         (1 + fragment_normal.y) * 128,
                         (1 + fragment_normal.z) * 128
+                    );
+                }
+
+                if (renderer_state->flags[RenderingFlags::DRAW_DEPTH_BUFFER]) {
+                    color = tiny_color_from_rgb(
+                        z_buffer_pixel_val,
+                        z_buffer_pixel_val,
+                        z_buffer_pixel_val
                     );
                 }
 
