@@ -1,4 +1,4 @@
-<img width="540" alt="Screenshot 2023-09-26 at 12 51 40" src="https://github.com/misclicl/pixelscape/assets/84678137/23d86321-bad5-4736-96b5-1e2ff5d6b7d7">
+<img width="540" alt="demo" src="https://github.com/misclicl/pixelscape/assets/84678137/3abedf0b-28cf-48c2-9724-18e91a7be9fb">
 
 # Pixelscape
 
