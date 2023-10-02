@@ -32,7 +32,8 @@ static float aspect_ratio = 1;
 static TinyColor default_color = 0xafafafff;
 static Color light_color = {200, 20, 180, 255};
 
-static TinyFPSCamera camera_fps;
+static PSCameraPerspective camera_pespective;
+// static TinyFPSCamera camera_fps;
 static Plane clipping_planes[6];
 
 static void render_triangle(
@@ -216,15 +217,22 @@ void Program::init(int width, int height) {
     p_body_mesh->translation.y = -1.0f;
     p_body_mesh->translation.x = 1.0f;
 
-    camera_fps = {
-        .position = {0.0, 0.0f, 3.0f},
-        .direction = {0.0, 0.0f, -1.0f},
-        .forward_velocity = {0.0, 0.0f, 0.0f},
-        .yaw_angle = 0.0f,
-        .pitch_angle = 0.0f
-    };
+    aspect_ratio = static_cast<float>(height) / width;
+    // camera_fps = {
+    //     .position = {0.0, 0.0f, 3.0f},
+    //     .direction = {0.0, 0.0f, -1.0f},
+    //     .forward_velocity = {0.0, 0.0f, 0.0f},
+    //     .yaw_angle = 0.0f,
+    //     .pitch_angle = 0.0f
+    // };
+    camera_pespective = perspective_cam_create(
+        camera_fov_y,
+        aspect_ratio,
+        Z_NEAR,
+        Z_FAR,
+        {0.0, 0.0f, 3.0f}
+    );
 
-    // light.direction = { 1.0f, -1.0f, -1.0f };
     light.direction = { 0.0f, -1.0f, -1.0f };
 
     depth_buffer = depth_buffer_create(width, height, -10000);
@@ -234,7 +242,6 @@ void Program::init(int width, int height) {
 
     face_buffer = (TinyTriangle *)malloc(FACE_BUFFER_SIZE_LIMIT * sizeof(TinyTriangle));
 
-    aspect_ratio = static_cast<float>(height) / width;
     float aspect_ratio_x = 1 / aspect_ratio;
     float camera_fov_x = 2 * atan(tan(camera_fov_y / 2) * aspect_ratio_x);
 
@@ -261,17 +268,21 @@ void Program::run(ColorBuffer *color_buffer) {
     Vec3f up= {0.0f, 1.0f, 0.0f};
     Vec3f target = {0.0f, 0.0f, -1.0f};
 
-    Matrix4 camera_rotation = mat4_get_rotation(camera_fps.pitch_angle, camera_fps.yaw_angle, 0);
-    camera_fps.direction = vec3_from_vec4(mat4_multiply_vec4(camera_rotation, vec4_from_vec3(target)));
-    target = camera_fps.position + camera_fps.direction;
+    // Matrix4 camera_rotation = mat4_get_rotation(camera_fps.pitch_angle, camera_fps.yaw_angle, 0);
+    // camera_fps.direction = vec3_from_vec4(mat4_multiply_vec4(camera_rotation, vec4_from_vec3(target)));
+    // target = camera_fps.position + camera_fps.direction;
 
-    Matrix4 mat_view = mat4_look_at(
-        camera_fps.position,
-        target,
-        {0.0f, 1.0f, 0.0f}
-    );
+    // Matrix4 mat_view = mat4_look_at(
+    //     camera_fps.position,
+    //     target,
+    //     {0.0f, 1.0f, 0.0f}
+    // );
+
+    perspective_cam_update(&camera_pespective);
+
     Vec4f light_direction_projected = mat4_multiply_vec4(
-        mat_view,
+        // mat_view,
+        camera_pespective.view_matrix,
         vec4_from_vec3(light.direction, false)
     );
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
@@ -287,7 +298,9 @@ void Program::run(ColorBuffer *color_buffer) {
         );
 
         for (int i = 0; i < mesh->shape_count; i++) {
-            Program::project_mesh(mesh, i, color_buffer, &mat_world, &mat_view);
+            Program::project_mesh(
+                mesh, i, color_buffer,
+                &mat_world, &camera_pespective.view_matrix);
             render_mesh(color_buffer, i, &light_pr, mesh);
         }
     }
@@ -351,46 +364,46 @@ void Program::handle_input(float delta_time) {
 
     // SECTION: Camera rotation
     if (IsKeyDown(KEY_LEFT)) {
-        camera_fps.yaw_angle += 1.0f * delta_time;
+        camera_pespective.yaw += 1.0f * delta_time;
     }
     if (IsKeyDown(KEY_RIGHT)) {
-        camera_fps.yaw_angle -= 1.0f * delta_time;
+        camera_pespective.yaw -= 1.0f * delta_time;
     }
     if (IsKeyDown(KEY_DOWN)) {
-        camera_fps.pitch_angle -= 1.0f * delta_time;
+        camera_pespective.pitch -= 1.0f * delta_time;
     }
     if (IsKeyDown(KEY_UP)) {
-        camera_fps.pitch_angle += 1.0f * delta_time;
+        camera_pespective.pitch += 1.0f * delta_time;
     }
 
     // SECTION: Camera position
     float camera_movement_speed = 1.0f;
+        Vec3f up = {0, 1, 0};
 
     if (IsKeyDown(KEY_W)) {
-        camera_fps.forward_velocity = camera_fps.direction * camera_movement_speed * delta_time;
-        camera_fps.position = camera_fps.position + camera_fps.forward_velocity;
+        auto forward_velocity = camera_pespective.direction * camera_movement_speed * delta_time;
+        camera_pespective.position = camera_pespective.position + forward_velocity;
     }
     if (IsKeyDown(KEY_D)) {
-        Vec3f up = {0, 1, 0};
-        auto camera_right = Vec3f::cross(camera_fps.direction, up);
-        camera_fps.lateral_velocity = camera_right * camera_movement_speed * delta_time;
-        camera_fps.position = camera_fps.position + camera_fps.lateral_velocity;
+        auto camera_right = Vec3f::cross(camera_pespective.direction, up);
+        auto lateral_velocity = camera_right * camera_movement_speed * delta_time;
+        camera_pespective.position = camera_pespective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_A)) {
-        Vec3f up = {0, 1, 0};
-        auto camera_right = Vec3f::cross(camera_fps.direction, up);
-        camera_fps.lateral_velocity = camera_right * -1.0 * camera_movement_speed * delta_time;
-        camera_fps.position = camera_fps.position + camera_fps.lateral_velocity;
+        auto camera_right = Vec3f::cross(camera_pespective.direction, up);
+        auto lateral_velocity = camera_right * -1.0 * camera_movement_speed * delta_time;
+        camera_pespective.position = camera_pespective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_S)) {
-        camera_fps.forward_velocity = camera_fps.direction * -1.0f * camera_movement_speed * delta_time;
-        camera_fps.position = camera_fps.position + camera_fps.forward_velocity;
+        auto forward_velocity = camera_pespective.direction * -1.0f
+            * camera_movement_speed * delta_time;
+        camera_pespective.position = camera_pespective.position + forward_velocity;
     }
     if (IsKeyDown(KEY_E)) {
-        camera_fps.position.y += camera_movement_speed * delta_time;
+        camera_pespective.position.y += camera_movement_speed * delta_time;
     }
     if (IsKeyDown(KEY_Q)) {
-        camera_fps.position.y -= camera_movement_speed * delta_time;
+        camera_pespective.position.y -= camera_movement_speed * delta_time;
     }
 
     if (IsKeyPressed(KEY_T)) {

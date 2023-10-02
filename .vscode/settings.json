@@ -4,6 +4,8 @@
         "cstdlib": "cpp",
         "cstdio": "cpp",
         "array": "cpp",
-        "algorithm": "cpp"
+        "algorithm": "cpp",
+        "bitset": "cpp",
+        "iosfwd": "cpp"
     }
 }
