@@ -133,7 +133,7 @@ Matrix4 mat4_get_rotation(float x, float y, float z) {
     return identity;
 }
 
-Matrix4 mat4_get_projection(float aspect_ratio, float fov, float z_near, float z_far) {
+Matrix4 mat4_get_perspective_projection(float aspect_ratio, float fov, float z_near, float z_far) {
     // | ar * (1/tan(theta/2))               0        0                 0 |
     // |                     0  1/tan(theta/2)        0                 0 |
     // |                     0               0  -lambda  -lambda * z_near |
@@ -150,6 +150,25 @@ Matrix4 mat4_get_projection(float aspect_ratio, float fov, float z_near, float z
 
     float depth_offset = (-2 * z_far * z_near) / (z_far - z_near);
     out.m14 = depth_offset;
+
+    return out;
+}
+
+Matrix4 mat4_get_orthographic_projection(float left, float right, float bottom, float top, float z_near, float z_far) {
+    Matrix4 out = {};
+
+    float lr = 1 / (right - left);
+    float bt = 1 / (top - bottom);
+    float nf = 1 / (z_near - z_far);
+
+    out.m0 = 2 * lr;
+    out.m5 = 2 * bt;
+    out.m10 = 2 * nf;
+
+    out.m12 = -(right + left) * lr;
+    out.m13 = -(top + bottom) * bt;
+    out.m14 = -(z_far + z_near) * nf;
+    out.m15 = 1.0f;
 
     return out;
 }

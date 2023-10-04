@@ -18,18 +18,44 @@ PSCameraPerspective perspective_cam_create(
 
     camera.fov = fov_y;
     camera.aspect = aspect;
+    camera.yaw = 0.0f;
+    camera.pitch = 0.0f;
+
     camera.z_near = z_near;
     camera.z_far = z_far;
 
-    camera.yaw = 0.0f;
-    camera.pitch = 0.0f;
+    return camera;
+}
+
+
+PSCameraOthographic orthographic_cam_create(
+    float left,
+    float right,
+    float top,
+    float bottom,
+    float z_near,
+    float z_far,
+    Vec3f position
+) {
+    log_message(LOG_LEVEL_INFO, "Create orthographic camera");
+
+    PSCameraOthographic camera = {};
+
+    camera.position = position;
+    camera.initial_direction = {0.0f, 0.0f, 0.0f};
+
+    camera.left = left;
+    camera.right = right;
+    camera.top = top;
+    camera.bottom = bottom;
+    camera.z_near = z_near;
+    camera.z_far = z_far;
 
     return camera;
 }
 
 void perspective_cam_update(PSCameraPerspective *camera) {
-    // CLEANUP: is this needed? Use initial_direction instead
-    Vec3f target = {0.0f, 0.0f, -1.0f};
+    auto target = camera->initial_direction;
     Vec3f up = {0.0f, 0.1f, 0.0f};
 
     Matrix4 rotation_matrix = mat4_get_rotation(camera->pitch, camera->yaw, 0);
@@ -42,9 +68,26 @@ void perspective_cam_update(PSCameraPerspective *camera) {
         up
     );
 
-    camera->projection_matrix = mat4_get_projection(
+    camera->projection_matrix = mat4_get_perspective_projection(
         camera->aspect,
         camera->fov,
         camera->z_near,
         camera->z_far);
+}
+
+void orthographic_cam_update(PSCameraOthographic *camera) {
+    Vec3f target = {0.0f, 0.0f, -1.0f}; // TODO: allow to define the target from the outside
+    Vec3f up = {0.0f, 0.1f, 0.0f};
+
+    camera->projection_matrix = mat4_get_orthographic_projection(
+        camera->left, camera->right,
+        camera->top, camera->bottom,
+        camera->z_near, camera->z_far
+    );
+
+    camera->view_matrix = mat4_look_at(
+        camera->position,
+        target,
+        up
+    );
 }

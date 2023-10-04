@@ -11,6 +11,8 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
+const auto default_color = tiny_color_from_rgb(200, 200, 200);
+
 void draw_line(
     ColorBuffer *color_buffer,
     float x0, float y0,
@@ -76,8 +78,7 @@ static void triangle_bb(Vec2f vertices[3], int boundaries[4], int screen_width, 
     boundaries[3] = std::min(screen_height - 1, y_end);
 }
 
-// static void barycentric_coords(Vec2<int> vertices[3], Vec2<int> p, float *alpha, float *beta, float *gamma) {
-static void barycentric_coords(Vec2f vertices[3], Vec2f p, float *alpha, float *beta, float *gamma) {
+inline static void barycentric_coords(Vec2f vertices[3], Vec2f p, float *alpha, float *beta, float *gamma) {
     // Formula: P = A + w1 * (B - A) + w2 * (C - A)
     //          P = A + u * vAB + vAC
     Vec2f vAB = vertices[1] - vertices[0];
@@ -91,11 +92,8 @@ static void barycentric_coords(Vec2f vertices[3], Vec2f p, float *alpha, float *
     *alpha = 1.0f - *beta - *gamma;
 }
 
-inline float apply_barycentric(float a, float b, float c, float alpha, float beta, float gamma) {
+inline static float apply_barycentric(float a, float b, float c, float alpha, float beta, float gamma) {
     return alpha * a + beta * b + gamma * c;
-}
-
-static void draw_triangle_pixel() {
 }
 
 static TinyColor sample_color_from_texture(
@@ -104,7 +102,7 @@ static TinyColor sample_color_from_texture(
     int u, int v,
     RendererState *renderer_state
 ) {
-     size_t uv_idx = (v * texture->height) + u;
+     size_t uv_idx = (v * texture->width) + u;
      auto color = GetPixelColor(texture_data + uv_idx, texture->format);
 
      auto texture_filter_mode = renderer_state == nullptr ?
@@ -114,20 +112,22 @@ static TinyColor sample_color_from_texture(
         case TextureFilterMode::NEAREST_NEIGHBOR:
             return ColorToInt(color);
         case TextureFilterMode::BILINEAR: {
-            uv_idx = (v * texture->height) + u + 1;
-            auto color_right = GetPixelColor(texture_data + uv_idx, texture->format);
-            uv_idx = (v * texture->height) + u - 1;
-            auto color_left = GetPixelColor(texture_data + uv_idx, texture->format);
-            uv_idx = ((v - 1) * texture->height) + u;
-            auto color_up = GetPixelColor(texture_data + uv_idx, texture->format);
-            uv_idx = ((v + 1) * texture->height) + u;
-            auto color_down = GetPixelColor(texture_data + uv_idx, texture->format);
+            // uv_idx = (v * texture->height) + u + 1;
+            // auto color_right = GetPixelColor(texture_data + uv_idx, texture->format);
+            // uv_idx = (v * texture->height) + u - 1;
+            // auto color_left = GetPixelColor(texture_data + uv_idx, texture->format);
+            // uv_idx = ((v - 1) * texture->height) + u;
+            // auto color_up = GetPixelColor(texture_data + uv_idx, texture->format);
+            // uv_idx = ((v + 1) * texture->height) + u;
+            // auto color_down = GetPixelColor(texture_data + uv_idx, texture->format);
 
-            return tiny_color_from_rgb(
-                (color.r + color_left.r + color_right.r + color_down.r + color_up.r) / 5,
-                (color.g + color_left.g + color_right.g + color_down.g + color_up.g) / 5,
-                (color.b + color_left.b + color_right.b + color_down.b + color_up.b) / 5
-            );
+            // return tiny_color_from_rgb(
+            //     (color.r + color_left.r + color_right.r + color_down.r + color_up.r) / 5,
+            //     (color.g + color_left.g + color_right.g + color_down.g + color_up.g) / 5,
+            //     (color.b + color_left.b + color_right.b + color_down.b + color_up.b) / 5
+            // );
+            // TODO: fix boundary checks
+            return ColorToInt(color);
         }
         default:
             return tiny_color_from_rgb(0, 0, 0);
@@ -168,16 +168,79 @@ inline static Vec3f calculate_fragment_normal(
     return fragment_normal;
 }
 
-void depth_testing() {
+void depth_test(
+    CameraType camera_type,
+    DepthBuffer *depth_buffer,
+    TinyTriangle *triangle
+) {
+    int target_width = depth_buffer->width;
+    int target_height = depth_buffer->height;
+
+    int boundaries[4];
+    Vec2f v_screen[3] = {
+        {triangle->vertices[0].position.x, triangle->vertices[0].position.y},
+        {triangle->vertices[1].position.x, triangle->vertices[1].position.y},
+        {triangle->vertices[2].position.x, triangle->vertices[2].position.y},
+    };
+    triangle_bb(v_screen, boundaries, target_width, target_height);
+
+    Vec2f p; // Current pixel
+    float alpha, beta, gamma;
+
+    float w_inverse0 = 1 / triangle->vertices[0].position.w;
+    float w_inverse1 = 1 / triangle->vertices[1].position.w;
+    float w_inverse2 = 1 / triangle->vertices[2].position.w;
+
+    float depth_value;
+    float intensity = 1.0f;
+
+    for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
+        for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
+            barycentric_coords(v_screen, {p.x, p.y}, &alpha, &beta, &gamma);
+
+            if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+
+                switch (camera_type) {
+                    case CameraType::ORTHOGRAPHIC:
+                        depth_value = apply_barycentric(
+                            triangle->vertices[0].position.z * w_inverse0,
+                            triangle->vertices[1].position.z * w_inverse1,
+                            triangle->vertices[2].position.z * w_inverse2,
+                            alpha, beta, gamma
+                        );
+
+                        break;
+                    case CameraType::PERSPECTIVE:
+                        depth_value = apply_barycentric(
+                            w_inverse0,
+                            w_inverse1,
+                            w_inverse2,
+                            alpha, beta, gamma
+                        );
+
+                        break;
+                }
+
+                auto depth_buffer_value = *buffer_pixel_get(depth_buffer, p.x, p.y);
+
+                if (depth_value < depth_buffer_value) {
+                    continue;
+                }
+
+                depth_buffer_set(depth_buffer, p.x, p.y, depth_value);
+            }
+        }
+    }
 }
 
-float clamp(float val, float min_val, float max_val) {
+inline float clamp(float val, float min_val, float max_val) {
     if (val < min_val) return min_val;
     if (val > max_val) return max_val;
     return val;
 }
 
 void draw_triangle(
+    CameraType camera_type,
     ColorBuffer *color_buffer,
     DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
@@ -190,7 +253,7 @@ void draw_triangle(
 
     int boundaries[4];
 
-    Vec2f p;
+    Vec2f p; // Current pixel
 
     float u, v; // Stores interpolated values
 
@@ -247,7 +310,7 @@ void draw_triangle(
 
                     color = sample_color_from_texture(data, diffuse_texture, u, v, renderer_state);
                 } else {
-                    color = tiny_color_from_rgb(200, 200, 200);
+                    color = default_color;
                 }
 
                 Vec3f fragment_normal = calculate_fragment_normal(
@@ -286,6 +349,7 @@ void draw_triangle(
 
                 // normals_color
                 if (renderer_state->flags[RenderingFlags::USE_FACE_NORMALS]) {
+                    // generate fragment normal color
                     color = tiny_color_from_rgb(
                         (1 + fragment_normal.x) * 128,
                         (1 + fragment_normal.y) * 128,

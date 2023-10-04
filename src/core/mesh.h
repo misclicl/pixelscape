@@ -1,5 +1,4 @@
-#ifndef __MESH_H__
-#define __MESH_H__
+#pragma once
 
 #include "tiny_color.h"
 #include "tiny_math.h"
@@ -59,5 +58,3 @@ TinyMesh *ps_get_mesh_data();
 size_t ps_get_mesh_count();
 
 Vec3f get_triangle_normal(Vec4f vertices[3]);
-
-#endif

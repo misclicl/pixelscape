@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
         mesh_rendering.run(&color_buffer);
         draw_axis(&color_buffer);
 
-        color_buffer.draw_to_texture();
+        // color_buffer.draw_to_texture();
 
         EndTextureMode();
 

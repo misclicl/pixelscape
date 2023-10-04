@@ -1,5 +1,4 @@
-#ifndef __DISPLAY_H__
-#define __DISPLAY_H__
+#pragma once
 
 #include <cstdlib>
 #include <vector>
@@ -11,6 +10,8 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 #include "mesh.h"
+#include "camera.h"
+
 #include "../examples/renderer.h"
 #include "../light.h"
 
@@ -34,6 +35,7 @@ void draw_triangle_wireframe(
 );
 
 void draw_triangle(
+    CameraType camera_type,
     ColorBuffer *color_buffer,
     DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
@@ -42,6 +44,5 @@ void draw_triangle(
     RendererState *renderer_state
 );
 
+void depth_test(CameraType camera_type, DepthBuffer *depth_buffer, TinyTriangle *triangle);
 void draw_axis(ColorBuffer *color_buffer);
-
-#endif

@@ -3,6 +3,11 @@
 #include "tiny_math.h"
 #include "matrix.h"
 
+enum CameraType {
+    PERSPECTIVE,
+    ORTHOGRAPHIC
+};
+
 struct PSCameraPerspective {
     Vec3f position;
     Vec3f initial_direction;
@@ -17,17 +22,22 @@ struct PSCameraPerspective {
 
     Matrix4 view_matrix;
     Matrix4 projection_matrix;
-    // Matrix4 inverse_view_matrix;
-    // Matrix4 inverse_projection_matrix;
 };
 
-struct TinyFPSCamera {
+struct PSCameraOthographic {
     Vec3f position;
+    Vec3f initial_direction;
     Vec3f direction;
-    Vec3f forward_velocity;
-    Vec3f lateral_velocity;
-    float yaw_angle;
-    float pitch_angle;
+
+    float left;
+    float right;
+    float top;
+    float bottom;
+    float z_near;
+    float z_far;
+
+    Matrix4 view_matrix;
+    Matrix4 projection_matrix;
 };
 
 PSCameraPerspective perspective_cam_create(
@@ -37,6 +47,15 @@ PSCameraPerspective perspective_cam_create(
     float z_far,
     Vec3f position
 );
-
 void perspective_cam_update(PSCameraPerspective *camera);
-// void perspective_cam_update(PSCameraPerspective *camera);
+
+PSCameraOthographic orthographic_cam_create(
+    float left,
+    float right,
+    float top,
+    float bottom,
+    float z_near,
+    float z_far,
+    Vec3f position
+);
+void orthographic_cam_update(PSCameraOthographic *camera);

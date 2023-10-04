@@ -13,6 +13,8 @@
 #include "../core/matrix.h"
 #include "../core/tiny_color.h"
 #include "../core/tiny_math.h"
+#include "../core/pipeline.h"
+#include "../core/ps_array.h"
 
 #include "../tooling/logger.h"
 #include "../tooling/render_debug_text.h"
@@ -32,45 +34,18 @@ static float aspect_ratio = 1;
 static TinyColor default_color = 0xafafafff;
 static Color light_color = {200, 20, 180, 255};
 
-static PSCameraPerspective camera_pespective;
-// static TinyFPSCamera camera_fps;
+// static PSCameraPerspective camera_pespective;
+static PSCameraOthographic camera_orthographic;
 static Plane clipping_planes[6];
 
-static void render_triangle(
-    ColorBuffer *color_buffer,
-    DepthBuffer *depth_buffer,
-    TinyTriangle *triangle,
-    RendererState *renderer_state,
-    Light *light,
-    Image *diffuse_texture
-) {
 
-    // TODO: might be a good idea to move all vertex array conversion
-    // over here. I already done it in SHOW_VERTICES section
-    if (renderer_state->flags[DRAW_TRIANGLES]) {
-        draw_triangle(
-            color_buffer,
-            depth_buffer,
-            triangle,
-            diffuse_texture,
-            light,
-            renderer_state
-        );
-    }
+void display_depth_buffer(DepthBuffer *buffer) {
+    for (size_t i = 0; i < buffer->size; i++) {
+        auto y = floor(i / buffer->width);
+        auto x = i % buffer->width;
 
-    if (renderer_state->flags[DRAW_WIREFRAME]) {
-        Vec4f vertices[3] =  {
-            triangle->vertices[0].position,
-            triangle->vertices[1].position,
-            triangle->vertices[2].position
-        };
-        draw_triangle_wireframe(color_buffer, vertices, 0xAAAAAB00);
-    }
-
-    if (renderer_state->flags[DRAW_VERTICES]) {
-        color_buffer->set_pixel(triangle->vertices[0].position.x, triangle->vertices[0].position.y, 0xF57716FF);
-        color_buffer->set_pixel(triangle->vertices[1].position.x, triangle->vertices[1].position.y, 0xF57716FF);
-        color_buffer->set_pixel(triangle->vertices[2].position.x, triangle->vertices[2].position.y, 0xF57716FF);
+        unsigned char a = buffer->data[i] * 255;
+        DrawPixel(x, y, (Color){ a, a, a, 255 });
     }
 }
 
@@ -88,7 +63,6 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
     return out;
 };
 
-
 void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
     size_t face_buffer_idx = 0;
 
@@ -98,7 +72,7 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
     Vec4f v_view[3];
     Vec3f normals[3];
 
-    auto mat_projection = mat4_get_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
+    // auto mat_projection = mat4_get_perspective_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
     auto mat_inversed = inverse_matrix(mat_view);
     Matrix4 mat_view_tr_inv = transpose_matrix(&mat_inversed);
 
@@ -151,8 +125,32 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
         for (int t_idx = 0; t_idx < triangle_count; t_idx++) {
             for (int v_idx = 0; v_idx < 3; v_idx++) {
                 // This gives me the image space or NDC
-                Vec4f v_projected = mat4_multiply_projection_vec4(mat_projection, triangles[t_idx].vertices[v_idx].position);
+                // printf("before: %f \n", triangles[t_idx].vertices[v_idx].position.w);
+                auto position_before = triangles[t_idx].vertices[v_idx].position;
+                Vec4f v_projected = mat4_multiply_projection_vec4(
+                    //  -.2    0    0    0
+                    //    0   .2    0   -0
+                    //    0    0 .066  -1.00
+                    //    0    0    0    1
+                    camera_orthographic.projection_matrix,
+                    position_before
+                );
 
+
+                // m0: -2 m4: 0 m8: 0 m12: 0
+                // m1: 0 m5: 2 m9: 0 m13: -0
+                // m2: 0 m6: 0 m10: -0.0668896362 m14: -1.00668895
+                // m3: 0 m7: 0 m11: 0 m15: 1
+
+
+                // [0]: (2, 0, 0, 0)
+                // [1]: (0, 2, 0, 0)
+                // [2]: (0, 0, 0.068965517, 0)
+                // [3]: (-0, -0, 1, 1)
+
+
+
+                // printf("after: %f \n", v_projected.w);
                 // In-camera view
                 triangles[t_idx].vertices[v_idx].position = {
                     (v_projected.x * target_half_width) + target_half_width,
@@ -171,19 +169,33 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
 
 void Program::render_mesh(ColorBuffer *color_buffer, size_t idx, Light *light, TinyMesh *mesh) {
     for (int i = 0; i < face_buffer_size; i++) {
-        render_triangle(
-            color_buffer,
+        depth_test(
+            CameraType::ORTHOGRAPHIC,
             depth_buffer,
-            &face_buffer[i],
-            &renderer_state,
-            light,
-            &mesh->textures[idx]
+            &face_buffer[i]
         );
     }
+
+    // normalize(depth_buffer->data, depth_buffer->size);
+    display_depth_buffer(depth_buffer);
+
+
+    // for (int i = 0; i < face_buffer_size; i++) {
+    //     render_triangle(
+    //         CameraType::ORTHOGRAPHIC,
+    //         color_buffer,
+    //         depth_buffer,
+    //         &face_buffer[i],
+    //         &renderer_state,
+    //         light,
+    //         &mesh->textures[idx]
+    //     );
+    // }
 }
 
 void Program::init(int width, int height) {
     char *cube_obj_path = (char *)"assets/cube.obj";
+    char *plane_obj_path = (char *)"assets/plane.obj";
     char *headscan_obj_path = (char *)"assets/headscan.obj";
 
     char *medic_obj_path = (char *)"assets/medic.obj";
@@ -204,34 +216,42 @@ void Program::init(int width, int height) {
         "assets/medic-face-diffuse.png",
         "assets/medic-body-diffuse.png",
     };
-    std::vector<std::string> p_body_textures = {
-        "assets/p-body/shell-2.png",
-    };
+    // std::vector<std::string> p_body_textures = {
+    //     "assets/p-body/shell-2.png",
+    // };
 
     auto medic_mesh = ps_load_mesh(medic_obj_path, medic_textures);
-    auto p_body_mesh = ps_load_mesh(p_body_obj_path, p_body_textures);
+    std::vector<std::string> plane_textures = {};
+    auto plane_mesh = ps_load_mesh(plane_obj_path, plane_textures);
+    // auto p_body_mesh = ps_load_mesh(p_body_obj_path, p_body_textures);
 
     medic_mesh->translation.y = -1.0f;
-    medic_mesh->translation.x = -1.0f;
+    plane_mesh->translation.y = -1.0f;
+    // medic_mesh->translation.x = -1.0f;
+    // medic_mesh->translation.z = -3.0f;
 
-    p_body_mesh->translation.y = -1.0f;
-    p_body_mesh->translation.x = 1.0f;
+    // p_body_mesh->translation.y = -1.0f;
+    // p_body_mesh->translation.x = 1.0f;
 
     aspect_ratio = static_cast<float>(height) / width;
-    // camera_fps = {
-    //     .position = {0.0, 0.0f, 3.0f},
-    //     .direction = {0.0, 0.0f, -1.0f},
-    //     .forward_velocity = {0.0, 0.0f, 0.0f},
-    //     .yaw_angle = 0.0f,
-    //     .pitch_angle = 0.0f
-    // };
-    camera_pespective = perspective_cam_create(
-        camera_fov_y,
-        aspect_ratio,
+
+    camera_orthographic = orthographic_cam_create(
+        // -.5, .5,
+        // .5, -.5,
+        2.0, -2.0,
+        -2.0, 2.0,
         Z_NEAR,
         Z_FAR,
-        {0.0, 0.0f, 3.0f}
+        {0.0, 3.0, 3.0}
     );
+
+    // camera_pespective = perspective_cam_create(
+    //     camera_fov_y,
+    //     aspect_ratio,
+    //     Z_NEAR,
+    //     Z_FAR,
+    //     {0.0, 0.0f, 3.0f}
+    // );
 
     light.direction = { 0.0f, -1.0f, -1.0f };
 
@@ -268,21 +288,12 @@ void Program::run(ColorBuffer *color_buffer) {
     Vec3f up= {0.0f, 1.0f, 0.0f};
     Vec3f target = {0.0f, 0.0f, -1.0f};
 
-    // Matrix4 camera_rotation = mat4_get_rotation(camera_fps.pitch_angle, camera_fps.yaw_angle, 0);
-    // camera_fps.direction = vec3_from_vec4(mat4_multiply_vec4(camera_rotation, vec4_from_vec3(target)));
-    // target = camera_fps.position + camera_fps.direction;
-
-    // Matrix4 mat_view = mat4_look_at(
-    //     camera_fps.position,
-    //     target,
-    //     {0.0f, 1.0f, 0.0f}
-    // );
-
-    perspective_cam_update(&camera_pespective);
+    // perspective_cam_update(&camera_pespective);
+    orthographic_cam_update(&camera_orthographic);
 
     Vec4f light_direction_projected = mat4_multiply_vec4(
-        // mat_view,
-        camera_pespective.view_matrix,
+        // camera_pespective.view_matrix,
+        camera_orthographic.view_matrix,
         vec4_from_vec3(light.direction, false)
     );
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
@@ -300,7 +311,8 @@ void Program::run(ColorBuffer *color_buffer) {
         for (int i = 0; i < mesh->shape_count; i++) {
             Program::project_mesh(
                 mesh, i, color_buffer,
-                &mat_world, &camera_pespective.view_matrix);
+                // &mat_world, &camera_pespective.view_matrix);
+                &mat_world, &camera_orthographic.view_matrix);
             render_mesh(color_buffer, i, &light_pr, mesh);
         }
     }
@@ -363,48 +375,59 @@ void Program::handle_input(float delta_time) {
     }
 
     // SECTION: Camera rotation
-    if (IsKeyDown(KEY_LEFT)) {
-        camera_pespective.yaw += 1.0f * delta_time;
-    }
-    if (IsKeyDown(KEY_RIGHT)) {
-        camera_pespective.yaw -= 1.0f * delta_time;
-    }
-    if (IsKeyDown(KEY_DOWN)) {
-        camera_pespective.pitch -= 1.0f * delta_time;
-    }
-    if (IsKeyDown(KEY_UP)) {
-        camera_pespective.pitch += 1.0f * delta_time;
-    }
+    // if (IsKeyDown(KEY_LEFT)) {
+    //     camera_pespective.yaw += 1.0f * delta_time;
+    // }
+    // if (IsKeyDown(KEY_RIGHT)) {
+    //     camera_pespective.yaw -= 1.0f * delta_time;
+    // }
+    // if (IsKeyDown(KEY_DOWN)) {
+    //     camera_pespective.pitch -= 1.0f * delta_time;
+    // }
+    // if (IsKeyDown(KEY_UP)) {
+    //     camera_pespective.pitch += 1.0f * delta_time;
+    // }
 
-    // SECTION: Camera position
+    // // SECTION: Camera position
     float camera_movement_speed = 1.0f;
-        Vec3f up = {0, 1, 0};
+    Vec3f up = {0, 1, 0};
+
+    // printf(
+    //     "pos: %f, %f, %f \n",
+    //     camera_orthographic.position.x,
+    //     camera_orthographic.position.y,
+    //     camera_orthographic.position.z
+    // );
 
     if (IsKeyDown(KEY_W)) {
-        auto forward_velocity = camera_pespective.direction * camera_movement_speed * delta_time;
-        camera_pespective.position = camera_pespective.position + forward_velocity;
+        camera_orthographic.position =  Vec3f { 0.0, 0.0, camera_movement_speed * delta_time}
+            + camera_orthographic.position;
+        // auto forward_velocity = camera_pespective.direction * camera_movement_speed * delta_time;
+        // camera_pespective.position = camera_pespective.position + forward_velocity;
     }
     if (IsKeyDown(KEY_D)) {
-        auto camera_right = Vec3f::cross(camera_pespective.direction, up);
-        auto lateral_velocity = camera_right * camera_movement_speed * delta_time;
-        camera_pespective.position = camera_pespective.position + lateral_velocity;
+        // auto camera_right = Vec3f::cross(camera_pespective.direction, up);
+        // auto lateral_velocity = camera_right * camera_movement_speed * delta_time;
+        // camera_pespective.position = camera_pespective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_A)) {
-        auto camera_right = Vec3f::cross(camera_pespective.direction, up);
-        auto lateral_velocity = camera_right * -1.0 * camera_movement_speed * delta_time;
-        camera_pespective.position = camera_pespective.position + lateral_velocity;
+        // auto camera_right = Vec3f::cross(camera_pespective.direction, up);
+        // auto lateral_velocity = camera_right * -1.0 * camera_movement_speed * delta_time;
+        // camera_pespective.position = camera_pespective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_S)) {
-        auto forward_velocity = camera_pespective.direction * -1.0f
-            * camera_movement_speed * delta_time;
-        camera_pespective.position = camera_pespective.position + forward_velocity;
+        camera_orthographic.position = Vec3f { 0.0, 0.0, -camera_movement_speed * delta_time }
+            + camera_orthographic.position;
+        // auto forward_velocity = camera_pespective.direction * -1.0f
+        //     * camera_movement_speed * delta_time;
+        // camera_pespective.position = camera_pespective.position + forward_velocity;
     }
-    if (IsKeyDown(KEY_E)) {
-        camera_pespective.position.y += camera_movement_speed * delta_time;
-    }
-    if (IsKeyDown(KEY_Q)) {
-        camera_pespective.position.y -= camera_movement_speed * delta_time;
-    }
+    // if (IsKeyDown(KEY_E)) {
+    //     camera_pespective.position.y += camera_movement_speed * delta_time;
+    // }
+    // if (IsKeyDown(KEY_Q)) {
+    //     camera_pespective.position.y -= camera_movement_speed * delta_time;
+    // }
 
     if (IsKeyPressed(KEY_T)) {
         if (renderer_state.texture_filter_mode == TextureFilterMode::NEAREST_NEIGHBOR) {
