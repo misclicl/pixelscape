@@ -171,7 +171,8 @@ inline static Vec3f calculate_fragment_normal(
 void depth_test(
     CameraType camera_type,
     DepthBuffer *depth_buffer,
-    TinyTriangle *triangle
+    TinyTriangle *triangle,
+    FragmentShader fragment_shader
 ) {
     int target_width = depth_buffer->width;
     int target_height = depth_buffer->height;
@@ -199,6 +200,11 @@ void depth_test(
             barycentric_coords(v_screen, {p.x, p.y}, &alpha, &beta, &gamma);
 
             if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                auto w_inverse_interpl = apply_barycentric(
+                    w_inverse0,
+                    w_inverse1,
+                    w_inverse2,
+                    alpha, beta, gamma);
 
                 switch (camera_type) {
                     case CameraType::ORTHOGRAPHIC:
@@ -208,16 +214,9 @@ void depth_test(
                             triangle->vertices[2].position.z * w_inverse2,
                             alpha, beta, gamma
                         );
-
                         break;
                     case CameraType::PERSPECTIVE:
-                        depth_value = apply_barycentric(
-                            w_inverse0,
-                            w_inverse1,
-                            w_inverse2,
-                            alpha, beta, gamma
-                        );
-
+                        depth_value = w_inverse_interpl;
                         break;
                 }
 
@@ -225,6 +224,47 @@ void depth_test(
 
                 if (depth_value < depth_buffer_value) {
                     continue;
+                }
+
+                // SECTION: Normals
+                // Calculate fragment normal vertor
+                Vec3f fragment_normal = calculate_fragment_normal(
+                    triangle,
+                    w_inverse0, w_inverse1, w_inverse2,
+                    w_inverse_interpl,
+                    alpha, beta, gamma
+                );
+                // SECTION_END
+
+                // SECTION: UVs
+                auto u = apply_barycentric(
+                    triangle->vertices[0].texcoords.x * w_inverse0,
+                    triangle->vertices[1].texcoords.x * w_inverse1,
+                    triangle->vertices[2].texcoords.x * w_inverse2,
+                    alpha, beta, gamma);
+
+                auto v = apply_barycentric(
+                    triangle->vertices[0].texcoords.y * w_inverse0,
+                    triangle->vertices[1].texcoords.y * w_inverse1,
+                    triangle->vertices[2].texcoords.y * w_inverse2,
+                    alpha, beta, gamma);
+
+                // these are from 0 to 1
+                u /= w_inverse_interpl;
+                v /= w_inverse_interpl;
+                // SECTION_END
+
+                if (fragment_shader) {
+                    FragmentData shader_data = {
+                        .depth = depth_value,
+                        .u = u,
+                        .v = v
+                    };
+
+                    Color result = fragment_shader(&shader_data);
+
+                    DrawPixel(p.x, p.y, result);
+                    // Use the 'result' as needed
                 }
 
                 depth_buffer_set(depth_buffer, p.x, p.y, depth_value);

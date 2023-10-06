@@ -11,6 +11,7 @@
 #include "tiny_math.h"
 #include "mesh.h"
 #include "camera.h"
+#include "shader.h"
 
 #include "../examples/renderer.h"
 #include "../light.h"
@@ -44,5 +45,10 @@ void draw_triangle(
     RendererState *renderer_state
 );
 
-void depth_test(CameraType camera_type, DepthBuffer *depth_buffer, TinyTriangle *triangle);
+void depth_test(
+    CameraType camera_type,
+    DepthBuffer *depth_buffer,
+    TinyTriangle *triangle,
+    FragmentShader fragment_shader
+);
 void draw_axis(ColorBuffer *color_buffer);

@@ -8,6 +8,7 @@
 #include "raylib.h"
 
 #include "../core/camera.h"
+#include "../core/shader.h"
 #include "../core/clipping.h"
 #include "../core/display.h"
 #include "../core/matrix.h"
@@ -38,15 +39,17 @@ static Color light_color = {200, 20, 180, 255};
 static PSCameraOthographic camera_orthographic;
 static Plane clipping_planes[6];
 
+Color my_fragment_shader_depth(void* data) {
+    FragmentData* fd = static_cast<FragmentData*>(data);
+    float depth = fd->depth;
+    auto depth_color_comp = static_cast<unsigned char>(depth * 255);
 
-void display_depth_buffer(DepthBuffer *buffer) {
-    for (size_t i = 0; i < buffer->size; i++) {
-        auto y = floor(i / buffer->width);
-        auto x = i % buffer->width;
-
-        unsigned char a = buffer->data[i] * 255;
-        DrawPixel(x, y, (Color){ a, a, a, 255 });
-    }
+    return Color {
+        .r = depth_color_comp,
+        .g = depth_color_comp,
+        .b = depth_color_comp,
+        255
+    };
 }
 
 inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_view) {
@@ -62,6 +65,16 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
 
     return out;
 };
+
+static void display_depth_buffer(DepthBuffer *buffer) {
+    for (size_t i = 0; i < buffer->size; i++) {
+        auto y = floor(i / buffer->width);
+        auto x = i % buffer->width;
+
+        unsigned char a = buffer->data[i] * 255;
+        DrawPixel(x, y, (Color){ a, a, a, 255 });
+    }
+}
 
 void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
     size_t face_buffer_idx = 0;
@@ -125,32 +138,12 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
         for (int t_idx = 0; t_idx < triangle_count; t_idx++) {
             for (int v_idx = 0; v_idx < 3; v_idx++) {
                 // This gives me the image space or NDC
-                // printf("before: %f \n", triangles[t_idx].vertices[v_idx].position.w);
                 auto position_before = triangles[t_idx].vertices[v_idx].position;
                 Vec4f v_projected = mat4_multiply_projection_vec4(
-                    //  -.2    0    0    0
-                    //    0   .2    0   -0
-                    //    0    0 .066  -1.00
-                    //    0    0    0    1
                     camera_orthographic.projection_matrix,
                     position_before
                 );
 
-
-                // m0: -2 m4: 0 m8: 0 m12: 0
-                // m1: 0 m5: 2 m9: 0 m13: -0
-                // m2: 0 m6: 0 m10: -0.0668896362 m14: -1.00668895
-                // m3: 0 m7: 0 m11: 0 m15: 1
-
-
-                // [0]: (2, 0, 0, 0)
-                // [1]: (0, 2, 0, 0)
-                // [2]: (0, 0, 0.068965517, 0)
-                // [3]: (-0, -0, 1, 1)
-
-
-
-                // printf("after: %f \n", v_projected.w);
                 // In-camera view
                 triangles[t_idx].vertices[v_idx].position = {
                     (v_projected.x * target_half_width) + target_half_width,
@@ -167,18 +160,16 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
     face_buffer_size = face_buffer_idx;
 }
 
+
 void Program::render_mesh(ColorBuffer *color_buffer, size_t idx, Light *light, TinyMesh *mesh) {
     for (int i = 0; i < face_buffer_size; i++) {
         depth_test(
             CameraType::ORTHOGRAPHIC,
             depth_buffer,
-            &face_buffer[i]
+            &face_buffer[i],
+            my_fragment_shader_depth
         );
     }
-
-    // normalize(depth_buffer->data, depth_buffer->size);
-    display_depth_buffer(depth_buffer);
-
 
     // for (int i = 0; i < face_buffer_size; i++) {
     //     render_triangle(
@@ -392,15 +383,8 @@ void Program::handle_input(float delta_time) {
     float camera_movement_speed = 1.0f;
     Vec3f up = {0, 1, 0};
 
-    // printf(
-    //     "pos: %f, %f, %f \n",
-    //     camera_orthographic.position.x,
-    //     camera_orthographic.position.y,
-    //     camera_orthographic.position.z
-    // );
-
     if (IsKeyDown(KEY_W)) {
-        camera_orthographic.position =  Vec3f { 0.0, 0.0, camera_movement_speed * delta_time}
+        camera_orthographic.position =  Vec3f { 0.0, 0.0, -camera_movement_speed * delta_time}
             + camera_orthographic.position;
         // auto forward_velocity = camera_pespective.direction * camera_movement_speed * delta_time;
         // camera_pespective.position = camera_pespective.position + forward_velocity;
@@ -416,18 +400,20 @@ void Program::handle_input(float delta_time) {
         // camera_pespective.position = camera_pespective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_S)) {
-        camera_orthographic.position = Vec3f { 0.0, 0.0, -camera_movement_speed * delta_time }
+        camera_orthographic.position = Vec3f { 0.0, 0.0, camera_movement_speed * delta_time }
             + camera_orthographic.position;
         // auto forward_velocity = camera_pespective.direction * -1.0f
         //     * camera_movement_speed * delta_time;
         // camera_pespective.position = camera_pespective.position + forward_velocity;
     }
-    // if (IsKeyDown(KEY_E)) {
-    //     camera_pespective.position.y += camera_movement_speed * delta_time;
-    // }
-    // if (IsKeyDown(KEY_Q)) {
-    //     camera_pespective.position.y -= camera_movement_speed * delta_time;
-    // }
+    if (IsKeyDown(KEY_E)) {
+        camera_orthographic.position.y += camera_movement_speed * delta_time;
+        // camera_pespective.position.y += camera_movement_speed * delta_time;
+    }
+    if (IsKeyDown(KEY_Q)) {
+        camera_orthographic.position.y -= camera_movement_speed * delta_time;
+        // camera_pespective.position.y -= camera_movement_speed * delta_time;
+    }
 
     if (IsKeyPressed(KEY_T)) {
         if (renderer_state.texture_filter_mode == TextureFilterMode::NEAREST_NEIGHBOR) {

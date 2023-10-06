@@ -63,13 +63,10 @@ int main(int argc, char **argv) {
         BeginTextureMode(render_texture);
         ClearBackground(BLACK);
 
-        // color_buffer.clear(0x878787ff);
         color_buffer.clear(0x000000ff);
 
         mesh_rendering.run(&color_buffer);
         draw_axis(&color_buffer);
-
-        // color_buffer.draw_to_texture();
 
         EndTextureMode();
 
