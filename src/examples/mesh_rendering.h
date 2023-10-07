@@ -6,6 +6,7 @@
 #include "../core/depth_buffer.h"
 #include "../core/matrix.h"
 #include "../core/mesh.h"
+#include "../core/camera.h"
 #include "../light.h"
 
 #include "renderer.h"
@@ -19,7 +20,8 @@ struct Program {
         size_t index,
         ColorBuffer *color_buffer,
         Matrix4 *mat_world,
-        Matrix4 *mat_view
+        Matrix4 *mat_view,
+        CameraType camera_type
     );
 
     void render_mesh(

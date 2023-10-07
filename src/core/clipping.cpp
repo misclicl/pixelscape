@@ -1,6 +1,32 @@
 #include "clipping.h"
 
-void init_clipping_planes(
+void init_clipping_planes_orthographic(
+    Plane planes[6],
+    float left,
+    float right,
+    float top,
+    float bottom,
+    float z_near,
+    float z_far
+) {
+    Vec3f origin = {};
+    Vec3f vec_top = { 0, -1, 0 };
+    Vec3f vec_bottom = { 0, 1, 0 };
+    Vec3f vec_left = { 1, 0, 0 };
+    Vec3f vec_right = { -1, 0, 0 };
+
+    // The clipping planes face outward
+    planes[CLIPPING_PLANE_LEFT] = { .position = { left, 0, 0 }, .normal = { -1, 0, 0 } };
+    planes[CLIPPING_PLANE_RIGHT] = { .position = Vec3f{ right, 0, 0 }, .normal = { 1, 0, 0 } };
+
+    planes[CLIPPING_PLANE_TOP] = { .position = { 0, top, 0 }, .normal = { 0, 1, 0 } };
+    planes[CLIPPING_PLANE_BOTTOM] = { .position = { 0, bottom, 0 }, .normal = { 0, -1, 0 } };
+
+    planes[CLIPPING_PLANE_NEAR] = { .position = { 0.0f, 0.0f, z_near }, .normal = { 0.0f, 0.0f, -1.0f} };
+    planes[CLIPPING_PLANE_FAR] = { .position = { 0.0f, 0.0f, z_far }, .normal = { 0.0f, 0.0f, 1.0f} };
+}
+
+void init_clipping_planes_perspective(
     Plane planes[6],
     float fov_horizontal,
     float fov_vertical,
@@ -12,32 +38,14 @@ void init_clipping_planes(
 
     Vec3f origin = {};
 
-    planes[CLIPPING_PLANE_RIGHT] = {
-        .position = origin,
-        .normal = { -cos(half_fov_h), 0, -sin(half_fov_h) }
-    };
-    planes[CLIPPING_PLANE_LEFT] = {
-        .position = origin,
-        .normal = { cos(half_fov_h), 0, -sin(half_fov_h) }
-    };
+    planes[CLIPPING_PLANE_LEFT] = { .position = origin, .normal = { cos(half_fov_h), 0, -sin(half_fov_h) } };
+    planes[CLIPPING_PLANE_RIGHT] = { .position = origin, .normal = { -cos(half_fov_h), 0, -sin(half_fov_h) } };
 
-    planes[CLIPPING_PLANE_TOP] = {
-        .position = origin,
-        .normal = { 0, -cos(half_fov_v), -sin(half_fov_v) }
-    };
-    planes[CLIPPING_PLANE_BOTTOM] = {
-        .position = origin,
-        .normal = { 0, cos(half_fov_v), -sin(half_fov_v) }
-    };
+    planes[CLIPPING_PLANE_TOP] = { .position = origin, .normal = { 0, -cos(half_fov_v), -sin(half_fov_v) } };
+    planes[CLIPPING_PLANE_BOTTOM] = { .position = origin, .normal = { 0, cos(half_fov_v), -sin(half_fov_v) } };
 
-    planes[CLIPPING_PLANE_NEAR] = {
-        .position = { 0.0f, 0.0f, z_near },
-        .normal = { 0.0f, 0.0f, -1.0f}
-    };
-    planes[CLIPPING_PLANE_FAR] = {
-        .position = { 0.0f, 0.0f, z_far },
-        .normal = { 0.0f, 0.0f, 1.0f}
-    };
+    planes[CLIPPING_PLANE_NEAR] = { .position = { 0.0f, 0.0f, z_near }, .normal = { 0.0f, 0.0f, -1.0f} };
+    planes[CLIPPING_PLANE_FAR] = { .position = { 0.0f, 0.0f, z_far }, .normal = { 0.0f, 0.0f, 1.0f} };
 }
 
 static void clip_polygon_against_plane(TinyPolygon *polygon, Plane plane) {

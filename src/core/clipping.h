@@ -21,10 +21,20 @@ struct Plane {
     Vec3f normal;
 };
 
-void init_clipping_planes(
+void init_clipping_planes_perspective(
     Plane planes[6],
     float fov_horizontal,
     float fov_vertical,
+    float z_near,
+    float z_far
+);
+
+void init_clipping_planes_orthographic(
+    Plane planes[6],
+    float left,
+    float right,
+    float top,
+    float bottom,
     float z_near,
     float z_far
 );

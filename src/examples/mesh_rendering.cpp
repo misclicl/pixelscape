@@ -37,7 +37,8 @@ static Color light_color = {200, 20, 180, 255};
 
 // static PSCameraPerspective camera_pespective;
 static PSCameraOthographic camera_orthographic;
-static Plane clipping_planes[6];
+static Plane clipping_planes_persp[6];
+static Plane clipping_planes_ortho[6];
 
 Color my_fragment_shader_depth(void* data) {
     FragmentData* fd = static_cast<FragmentData*>(data);
@@ -76,7 +77,14 @@ static void display_depth_buffer(DepthBuffer *buffer) {
     }
 }
 
-void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buffer, Matrix4 *mat_world, Matrix4 *mat_view) {
+void Program::project_mesh(
+    TinyMesh *mesh, 
+    size_t index, 
+    ColorBuffer *color_buffer, 
+    Matrix4 *mat_world, 
+    Matrix4 *mat_view,
+    CameraType camera_type
+) {
     size_t face_buffer_idx = 0;
 
     int target_half_width = color_buffer->width / 2;
@@ -128,7 +136,12 @@ void Program::project_mesh(TinyMesh *mesh, size_t index, ColorBuffer *color_buff
         );
 
         // Clip the polygon
-        clip_polygon(&polygon, clipping_planes);
+        if (camera_type == CameraType::PERSPECTIVE) {
+            clip_polygon(&polygon, clipping_planes_persp);
+        } else {
+            clip_polygon(&polygon, clipping_planes_ortho);
+        }
+
         // Triangulate the polygon
         TinyTriangle triangles[POLYGON_MAX_TRIANGLES] = {};
         size_t triangle_count = 0;
@@ -256,10 +269,18 @@ void Program::init(int width, int height) {
     float aspect_ratio_x = 1 / aspect_ratio;
     float camera_fov_x = 2 * atan(tan(camera_fov_y / 2) * aspect_ratio_x);
 
-    init_clipping_planes(
-        clipping_planes,
+    init_clipping_planes_perspective(
+        clipping_planes_persp,
         camera_fov_x,
         camera_fov_y,
+        Z_NEAR,
+        Z_FAR
+    );
+
+    init_clipping_planes_orthographic(
+        clipping_planes_ortho,
+        2.0, -2.0,
+        -2.0, 2.0,
         Z_NEAR,
         Z_FAR
     );
@@ -303,7 +324,9 @@ void Program::run(ColorBuffer *color_buffer) {
             Program::project_mesh(
                 mesh, i, color_buffer,
                 // &mat_world, &camera_pespective.view_matrix);
-                &mat_world, &camera_orthographic.view_matrix);
+                &mat_world, &camera_orthographic.view_matrix, 
+                CameraType::ORTHOGRAPHIC
+            );
             render_mesh(color_buffer, i, &light_pr, mesh);
         }
     }
