@@ -26,6 +26,7 @@ void init_clipping_planes_orthographic(
     planes[CLIPPING_PLANE_FAR] = { .position = { 0.0f, 0.0f, z_far }, .normal = { 0.0f, 0.0f, 1.0f} };
 }
 
+// Pass camera and build plane based on camera type?
 void init_clipping_planes_perspective(
     Plane planes[6],
     float fov_horizontal,
@@ -131,16 +132,16 @@ TinyPolygon polygon_from_triangle(
         .vertices = {
             {
                 .position = a_pos,
-                .texcoords = a_uv,
                 .normal = a_norm,
+                .texcoords = a_uv,
             }, {
                 .position = b_pos,
-                .texcoords = b_uv,
                 .normal = b_norm,
+                .texcoords = b_uv,
             }, {
                 .position = c_pos,
-                .texcoords = c_uv,
                 .normal = c_norm,
+                .texcoords = c_uv,
             }
         },
         .vertex_count = 3

@@ -24,12 +24,6 @@ struct Program {
         CameraType camera_type
     );
 
-    void render_mesh(
-        ColorBuffer *color_buffer,
-        size_t index,
-        Light *light,
-        TinyMesh *mesh
-    );
 
     void handle_input(float delta_time);
 

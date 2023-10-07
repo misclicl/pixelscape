@@ -28,30 +28,53 @@
 #define FACE_BUFFER_SIZE_LIMIT 250000
 #define ROTATION_SPEED 0.2f
 #define Z_NEAR -0.1f
-#define Z_FAR -30.0f
+#define Z_FAR -300.0f
 
-static float camera_fov_y = 59 * DEG2RAD;
-static float aspect_ratio = 1;
+static float camera_fov_y = 60 * DEG2RAD;
+static float aspect_ratio = 1; // Gets calculated from color buffer size later
 static TinyColor default_color = 0xafafafff;
 static Color light_color = {200, 20, 180, 255};
 
-// static PSCameraPerspective camera_pespective;
-static PSCameraOthographic camera_orthographic;
+static DepthBuffer *depth_buffer_light;
+
+static PSCameraPerspective camera_perspective;
 static Plane clipping_planes_persp[6];
+
+static PSCameraOthographic camera_orthographic;
 static Plane clipping_planes_ortho[6];
 
-Color my_fragment_shader_depth(void* data) {
+inline float clamp(float val, float min_val, float max_val) {
+    if (val < min_val) return min_val;
+    if (val > max_val) return max_val;
+    return val;
+}
+
+Color fragment_shader_depth(void* data) {
     FragmentData* fd = static_cast<FragmentData*>(data);
-    float depth = fd->depth;
-    auto depth_color_comp = static_cast<unsigned char>(depth * 255);
+    float depth_color_float = fd->depth * 255;
+    uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
 
     return Color {
-        .r = depth_color_comp,
-        .g = depth_color_comp,
-        .b = depth_color_comp,
-        255
+        .r = depth_color,
+        .g = 0,
+        .b = 0,
+        .a = 255
     };
 }
+
+Color fragment_shader_main(void* data) {
+    FragmentData* fd = static_cast<FragmentData*>(data);
+    float depth_color_float = fd->depth * 255;
+    uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
+
+    return Color {
+        .r = depth_color,
+        .g = depth_color,
+        .b = depth_color,
+        .a = 255
+    };
+}
+
 
 inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_view) {
     Vec4f out = mat4_multiply_vec4(
@@ -67,15 +90,6 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
     return out;
 };
 
-static void display_depth_buffer(DepthBuffer *buffer) {
-    for (size_t i = 0; i < buffer->size; i++) {
-        auto y = floor(i / buffer->width);
-        auto x = i % buffer->width;
-
-        unsigned char a = buffer->data[i] * 255;
-        DrawPixel(x, y, (Color){ a, a, a, 255 });
-    }
-}
 
 void Program::project_mesh(
     TinyMesh *mesh, 
@@ -93,7 +107,6 @@ void Program::project_mesh(
     Vec4f v_view[3];
     Vec3f normals[3];
 
-    // auto mat_projection = mat4_get_perspective_projection(aspect_ratio, camera_fov_y, Z_NEAR, Z_FAR);
     auto mat_inversed = inverse_matrix(mat_view);
     Matrix4 mat_view_tr_inv = transpose_matrix(&mat_inversed);
 
@@ -113,12 +126,13 @@ void Program::project_mesh(
         auto triangle_normal = get_triangle_normal(v_view);
 
         if (renderer_state.flags[CULL_BACKFACE]) {
-            Vec3f camera_ray = -vec3_from_vec4(v_view[0]);
-            float dot_normal_cam = Vec3f::dot(camera_ray, triangle_normal);
-
-            if (dot_normal_cam < 0.f) {
-                continue;
-            }
+            // TODO: put back, now it seems to work incorrect with orhographic projection
+            // Vec3f camera_ray = -vec3_from_vec4(v_view[0]);
+            // float dot_normal_cam = Vec3f::dot(camera_ray, triangle_normal);
+            //
+            // if (dot_normal_cam < 0.f) {
+            //     continue;
+            // }
         }
         // SECTION_END
 
@@ -152,10 +166,20 @@ void Program::project_mesh(
             for (int v_idx = 0; v_idx < 3; v_idx++) {
                 // This gives me the image space or NDC
                 auto position_before = triangles[t_idx].vertices[v_idx].position;
-                Vec4f v_projected = mat4_multiply_projection_vec4(
-                    camera_orthographic.projection_matrix,
-                    position_before
-                );
+
+                Vec4f v_projected;
+
+                if (camera_type == CameraType::PERSPECTIVE) {
+                    v_projected = mat4_multiply_projection_vec4(
+                        camera_perspective.projection_matrix,
+                        position_before
+                    );
+                } else {
+                    v_projected = mat4_multiply_projection_vec4(
+                        camera_orthographic.projection_matrix,
+                        position_before
+                    );
+                }
 
                 // In-camera view
                 triangles[t_idx].vertices[v_idx].position = {
@@ -173,28 +197,31 @@ void Program::project_mesh(
     face_buffer_size = face_buffer_idx;
 }
 
+// TODO: This should become a rendering program that I can attach texture samplers to?
+// Additionally I could set various params as well, such as projection type, shaders, etc
+static void render_mesh(
+    CameraType camera_type,
 
-void Program::render_mesh(ColorBuffer *color_buffer, size_t idx, Light *light, TinyMesh *mesh) {
+    ColorBuffer *color_buffer, // TODO: What do I need color buffer for now? Do I really?
+    DepthBuffer *depth_buffer,
+
+    TinyTriangle *face_buffer,
+    size_t face_buffer_size,
+
+    FragmentShader fragment_shader
+
+    // TinyMesh *mesh
+    // TODO: this should become shader input and doesn't really have to be here?
+    // Light *light
+) {
     for (int i = 0; i < face_buffer_size; i++) {
         depth_test(
-            CameraType::ORTHOGRAPHIC,
+            camera_type,
             depth_buffer,
             &face_buffer[i],
-            my_fragment_shader_depth
+            fragment_shader
         );
     }
-
-    // for (int i = 0; i < face_buffer_size; i++) {
-    //     render_triangle(
-    //         CameraType::ORTHOGRAPHIC,
-    //         color_buffer,
-    //         depth_buffer,
-    //         &face_buffer[i],
-    //         &renderer_state,
-    //         light,
-    //         &mesh->textures[idx]
-    //     );
-    // }
 }
 
 void Program::init(int width, int height) {
@@ -232,7 +259,6 @@ void Program::init(int width, int height) {
     medic_mesh->translation.y = -1.0f;
     plane_mesh->translation.y = -1.0f;
     // medic_mesh->translation.x = -1.0f;
-    // medic_mesh->translation.z = -3.0f;
 
     // p_body_mesh->translation.y = -1.0f;
     // p_body_mesh->translation.x = 1.0f;
@@ -240,25 +266,24 @@ void Program::init(int width, int height) {
     aspect_ratio = static_cast<float>(height) / width;
 
     camera_orthographic = orthographic_cam_create(
-        // -.5, .5,
-        // .5, -.5,
         2.0, -2.0,
-        -2.0, 2.0,
+        -2.0 * aspect_ratio, 2.0 * aspect_ratio,
         Z_NEAR,
-        Z_FAR,
-        {0.0, 3.0, 3.0}
+        -15.0,
+        {1.0, 1.0, 3.0}
     );
 
-    // camera_pespective = perspective_cam_create(
-    //     camera_fov_y,
-    //     aspect_ratio,
-    //     Z_NEAR,
-    //     Z_FAR,
-    //     {0.0, 0.0f, 3.0f}
-    // );
+    camera_perspective = perspective_cam_create(
+        camera_fov_y,
+        aspect_ratio,
+        Z_NEAR,
+        Z_FAR,
+        {0.0, 0.0f, 3.0f}
+    );
 
     light.direction = { 0.0f, -1.0f, -1.0f };
 
+    depth_buffer_light = depth_buffer_create(width, height, -10000);
     depth_buffer = depth_buffer_create(width, height, -10000);
     if (!depth_buffer) {
         log_message(LogLevel::LOG_LEVEL_ERROR, "Failed to create depth buffer");
@@ -273,16 +298,16 @@ void Program::init(int width, int height) {
         clipping_planes_persp,
         camera_fov_x,
         camera_fov_y,
-        Z_NEAR,
-        Z_FAR
+        camera_perspective.z_near,
+        camera_perspective.z_far
     );
 
     init_clipping_planes_orthographic(
         clipping_planes_ortho,
         2.0, -2.0,
         -2.0, 2.0,
-        Z_NEAR,
-        Z_FAR
+        camera_orthographic.z_near,
+        camera_orthographic.z_far
     );
 }
 
@@ -293,6 +318,7 @@ void Program::run(ColorBuffer *color_buffer) {
     handle_input(delta);
 
     depth_buffer_clear(depth_buffer, -10000);
+    depth_buffer_clear(depth_buffer_light, -10000);
 
     auto mesh_data = ps_get_mesh_data();
     auto mesh_count = ps_get_mesh_count();
@@ -300,16 +326,16 @@ void Program::run(ColorBuffer *color_buffer) {
     Vec3f up= {0.0f, 1.0f, 0.0f};
     Vec3f target = {0.0f, 0.0f, -1.0f};
 
-    // perspective_cam_update(&camera_pespective);
+    perspective_cam_update(&camera_perspective);
     orthographic_cam_update(&camera_orthographic);
 
     Vec4f light_direction_projected = mat4_multiply_vec4(
-        // camera_pespective.view_matrix,
-        camera_orthographic.view_matrix,
+        camera_perspective.view_matrix,
         vec4_from_vec3(light.direction, false)
     );
     Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
 
+    // Depth pass
     Matrix4 mat_world;
     for (size_t i = 0; i < mesh_count; i++) {
         auto mesh = &mesh_data[i];
@@ -323,11 +349,46 @@ void Program::run(ColorBuffer *color_buffer) {
         for (int i = 0; i < mesh->shape_count; i++) {
             Program::project_mesh(
                 mesh, i, color_buffer,
-                // &mat_world, &camera_pespective.view_matrix);
                 &mat_world, &camera_orthographic.view_matrix, 
                 CameraType::ORTHOGRAPHIC
             );
-            render_mesh(color_buffer, i, &light_pr, mesh);
+
+            render_mesh(
+                CameraType::ORTHOGRAPHIC,
+                color_buffer,
+                depth_buffer_light,
+                face_buffer,
+                face_buffer_size,
+                // nullptr
+                fragment_shader_depth
+            );
+        }
+    }
+    // Main camera
+    for (size_t i = 0; i < mesh_count; i++) {
+        auto mesh = &mesh_data[i];
+
+        mat_world = mat4_get_world(
+            mesh->scale,
+            mesh->rotation,
+            mesh->translation
+        );
+
+        for (int i = 0; i < mesh->shape_count; i++) {
+            Program::project_mesh(
+                mesh, i, color_buffer,
+                &mat_world, &camera_perspective.view_matrix,
+                CameraType::PERSPECTIVE // TODO: camera type can be recognised from the camera itsef
+            );
+
+            render_mesh(
+                CameraType::PERSPECTIVE,
+                color_buffer, 
+                depth_buffer, 
+                face_buffer, 
+                face_buffer_size, 
+                fragment_shader_main
+            );
         }
     }
 }
@@ -377,11 +438,17 @@ void Program::handle_input(float delta_time) {
 
     if (IsKeyPressed(KEY_ONE)) {
         renderer_state.flags.flip(DRAW_VERTICES);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display vertices: %d", static_cast<int>(renderer_state.flags[DRAW_VERTICES]));
+        log_message(
+            LogLevel::LOG_LEVEL_DEBUG, 
+            "Display vertices: %d", static_cast<int>(renderer_state.flags[DRAW_VERTICES])
+        );
     }
     if (IsKeyPressed(KEY_TWO)) {
         renderer_state.flags.flip(DRAW_WIREFRAME);
-        log_message(LogLevel::LOG_LEVEL_DEBUG, "Display wireframe: %d", static_cast<int>(renderer_state.flags[DRAW_WIREFRAME]));
+        log_message(
+            LogLevel::LOG_LEVEL_DEBUG, 
+            "Display wireframe: %d", static_cast<int>(renderer_state.flags[DRAW_WIREFRAME])
+        );
     }
     if (IsKeyPressed(KEY_THREE)) {
         renderer_state.flags.flip(DRAW_TRIANGLES);
@@ -389,53 +456,53 @@ void Program::handle_input(float delta_time) {
     }
 
     // SECTION: Camera rotation
-    // if (IsKeyDown(KEY_LEFT)) {
-    //     camera_pespective.yaw += 1.0f * delta_time;
-    // }
-    // if (IsKeyDown(KEY_RIGHT)) {
-    //     camera_pespective.yaw -= 1.0f * delta_time;
-    // }
-    // if (IsKeyDown(KEY_DOWN)) {
-    //     camera_pespective.pitch -= 1.0f * delta_time;
-    // }
-    // if (IsKeyDown(KEY_UP)) {
-    //     camera_pespective.pitch += 1.0f * delta_time;
-    // }
+    if (IsKeyDown(KEY_LEFT)) {
+        camera_perspective.yaw += 1.0f * delta_time;
+    }
+    if (IsKeyDown(KEY_RIGHT)) {
+        camera_perspective.yaw -= 1.0f * delta_time;
+    }
+    if (IsKeyDown(KEY_DOWN)) {
+        camera_perspective.pitch -= 1.0f * delta_time;
+    }
+    if (IsKeyDown(KEY_UP)) {
+        camera_perspective.pitch += 1.0f * delta_time;
+    }
 
     // // SECTION: Camera position
     float camera_movement_speed = 1.0f;
     Vec3f up = {0, 1, 0};
 
     if (IsKeyDown(KEY_W)) {
-        camera_orthographic.position =  Vec3f { 0.0, 0.0, -camera_movement_speed * delta_time}
-            + camera_orthographic.position;
-        // auto forward_velocity = camera_pespective.direction * camera_movement_speed * delta_time;
-        // camera_pespective.position = camera_pespective.position + forward_velocity;
+        // camera_orthographic.position =  Vec3f { 0.0, 0.0, -camera_movement_speed * delta_time}
+        //     + camera_orthographic.position;
+        auto forward_velocity = camera_perspective.direction * camera_movement_speed * delta_time;
+        camera_perspective.position = camera_perspective.position + forward_velocity;
     }
     if (IsKeyDown(KEY_D)) {
-        // auto camera_right = Vec3f::cross(camera_pespective.direction, up);
-        // auto lateral_velocity = camera_right * camera_movement_speed * delta_time;
-        // camera_pespective.position = camera_pespective.position + lateral_velocity;
+        auto camera_right = Vec3f::cross(camera_perspective.direction, up);
+        auto lateral_velocity = camera_right * camera_movement_speed * delta_time;
+        camera_perspective.position = camera_perspective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_A)) {
-        // auto camera_right = Vec3f::cross(camera_pespective.direction, up);
-        // auto lateral_velocity = camera_right * -1.0 * camera_movement_speed * delta_time;
-        // camera_pespective.position = camera_pespective.position + lateral_velocity;
+        auto camera_right = Vec3f::cross(camera_perspective.direction, up);
+        auto lateral_velocity = camera_right * -1.0 * camera_movement_speed * delta_time;
+        camera_perspective.position = camera_perspective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_S)) {
-        camera_orthographic.position = Vec3f { 0.0, 0.0, camera_movement_speed * delta_time }
-            + camera_orthographic.position;
-        // auto forward_velocity = camera_pespective.direction * -1.0f
-        //     * camera_movement_speed * delta_time;
-        // camera_pespective.position = camera_pespective.position + forward_velocity;
+        // camera_orthographic.position = Vec3f { 0.0, 0.0, camera_movement_speed * delta_time }
+        //     + camera_orthographic.position;
+        auto forward_velocity = camera_perspective.direction * -1.0f
+            * camera_movement_speed * delta_time;
+        camera_perspective.position = camera_perspective.position + forward_velocity;
     }
     if (IsKeyDown(KEY_E)) {
-        camera_orthographic.position.y += camera_movement_speed * delta_time;
-        // camera_pespective.position.y += camera_movement_speed * delta_time;
+        // camera_orthographic.position.y += camera_movement_speed * delta_time;
+        camera_perspective.position.y += camera_movement_speed * delta_time;
     }
     if (IsKeyDown(KEY_Q)) {
-        camera_orthographic.position.y -= camera_movement_speed * delta_time;
-        // camera_pespective.position.y -= camera_movement_speed * delta_time;
+        // camera_orthographic.position.y -= camera_movement_speed * delta_time;
+        camera_perspective.position.y -= camera_movement_speed * delta_time;
     }
 
     if (IsKeyPressed(KEY_T)) {

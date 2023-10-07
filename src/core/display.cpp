@@ -273,6 +273,7 @@ void depth_test(
     }
 }
 
+// TODO: remove
 inline float clamp(float val, float min_val, float max_val) {
     if (val < min_val) return min_val;
     if (val > max_val) return max_val;
