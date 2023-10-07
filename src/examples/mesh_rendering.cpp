@@ -49,6 +49,7 @@ inline float clamp(float val, float min_val, float max_val) {
     return val;
 }
 
+// TODO: this should live in the gl program state
 struct Uniforms {
     Vec3f light_dir;
 };
@@ -60,6 +61,7 @@ Color fragment_shader_depth(void *data, void *uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
     float depth_color_float = fd->depth * 255;
     uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
+
 
     return Color {
         .r = depth_color,
@@ -73,13 +75,16 @@ Color fragment_shader_depth(void *data, void *uniforms) {
 Color fragment_shader_main(void* data, void *_uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
     Vec3f normal = fd->normal;
+    float depth_value = fd->depth;
 
-    // float depth_color_float = fd->depth * 255;
-    // uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
 
     float alignment = -Vec3f::dot(uniforms.light_dir.normalize(), normal);
     alignment = std::max(alignment, 0.f);
     auto color = apply_intensity(default_color, {255, 255, 255, 255}, alignment);
+
+
+    // auto shadow_map_x = .x / fragmentPosLightSpace.w + 1.0f) * 0.5f;
+    // auto shadow_map_y = fragmentPosLightSpace.y / fragmentPosLightSpace.w + 1.0f) * 0.5f;
 
     return GetColor(color);
 
@@ -106,13 +111,15 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
 };
 
 
-void Program::project_mesh(
+static void project_mesh(
     TinyMesh *mesh,
-    size_t index,
+    size_t shape_idx,
     ColorBuffer *color_buffer,
+    DepthBuffer * depth_buffer,
     Matrix4 *mat_world,
     Matrix4 *mat_view,
-    CameraType camera_type
+    CameraType camera_type,
+    FragmentShader fragment_shader
 ) {
     size_t face_buffer_idx = 0;
 
@@ -125,8 +132,8 @@ void Program::project_mesh(
     auto mat_inversed = inverse_matrix(mat_view);
     Matrix4 mat_view_tr_inv = transpose_matrix(&mat_inversed);
 
-    for (int i = 0; i < mesh->shapes[index].face_count; i++) {
-        TinyFace *face = &(mesh->shapes[index].faces[i]);
+    for (int i = 0; i < mesh->shapes[shape_idx].face_count; i++) {
+        TinyFace *face = &(mesh->shapes[shape_idx].faces[i]);
 
         // model -> view
         for (int j = 0; j < 3; j++) {
@@ -138,17 +145,16 @@ void Program::project_mesh(
         }
 
         // SECTION: backface culling
-        auto triangle_normal = get_triangle_normal(v_view);
-
-        if (renderer_state.flags[CULL_BACKFACE]) {
-            // TODO: put back, now it seems to work incorrect with orhographic projection
+        // auto triangle_normal = get_triangle_normal(v_view);
+        // TODO: put back, now it seems to work incorrect with orhographic projection
+        // if (renderer_state.flags[CULL_BACKFACE]) {
             // Vec3f camera_ray = -vec3_from_vec4(v_view[0]);
             // float dot_normal_cam = Vec3f::dot(camera_ray, triangle_normal);
             //
             // if (dot_normal_cam < 0.f) {
             //     continue;
             // }
-        }
+        // }
         // SECTION_END
 
         // TODO: define in the begining and write data here right away
@@ -180,19 +186,19 @@ void Program::project_mesh(
         for (int t_idx = 0; t_idx < triangle_count; t_idx++) {
             for (int v_idx = 0; v_idx < 3; v_idx++) {
                 // This gives me the image space or NDC
-                auto position_before = triangles[t_idx].vertices[v_idx].position;
+                auto triangle_position = triangles[t_idx].vertices[v_idx].position;
 
                 Vec4f v_projected;
 
                 if (camera_type == CameraType::PERSPECTIVE) {
                     v_projected = mat4_multiply_projection_vec4(
                         camera_perspective.projection_matrix,
-                        position_before
+                        triangle_position
                     );
                 } else {
                     v_projected = mat4_multiply_projection_vec4(
                         camera_orthographic.projection_matrix,
-                        position_before
+                        triangle_position
                     );
                 }
 
@@ -205,11 +211,14 @@ void Program::project_mesh(
                 };
             }
 
-            face_buffer[face_buffer_idx++] = triangles[t_idx];
+            depth_test(
+                camera_type,
+                depth_buffer,
+                &triangles[t_idx],
+                fragment_shader
+            );
         }
     }
-
-    face_buffer_size = face_buffer_idx;
 }
 
 // TODO: This should become a rendering program that I can attach texture samplers to?
@@ -296,7 +305,7 @@ void Program::init(int width, int height) {
         {0.0, 0.0f, 3.0f}
     );
 
-    light.direction = { 0.0f, -1.0f, -1.0f };
+    light.direction = { 1.0f, -1.0f, -0.5f };
 
     depth_buffer_light = depth_buffer_create(width, height, -10000);
     depth_buffer = depth_buffer_create(width, height, -10000);
@@ -363,18 +372,14 @@ void Program::run(ColorBuffer *color_buffer) {
         );
 
         for (int i = 0; i < mesh->shape_count; i++) {
-            Program::project_mesh(
-                mesh, i, color_buffer,
-                &mat_world, &camera_orthographic.view_matrix,
-                CameraType::ORTHOGRAPHIC
-            );
-
-            render_mesh(
-                CameraType::ORTHOGRAPHIC,
+            project_mesh(
+                mesh, 
+                i, 
                 color_buffer,
                 depth_buffer_light,
-                face_buffer,
-                face_buffer_size,
+                &mat_world, 
+                &camera_orthographic.view_matrix,
+                CameraType::ORTHOGRAPHIC,
                 fragment_shader_depth
             );
         }
@@ -389,22 +394,20 @@ void Program::run(ColorBuffer *color_buffer) {
             mesh->translation
         );
 
-        for (int i = 0; i < mesh->shape_count; i++) {
-            Program::project_mesh(
-                mesh, i, color_buffer,
-                &mat_world, &camera_perspective.view_matrix,
-                CameraType::PERSPECTIVE // TODO: camera type can be recognised from the camera itsef
-            );
-
-            render_mesh(
-                CameraType::PERSPECTIVE,
+        // TODO: Im pretty sure I could do this loop inside project mesh, right?
+        // or pass down the shape instead
+        for (int shape_idx = 0; shape_idx < mesh->shape_count; shape_idx++) {
+            project_mesh(
+                mesh,
+                shape_idx,
                 color_buffer,
                 depth_buffer,
-                face_buffer,
-                face_buffer_size,
+                &mat_world,
+                &camera_perspective.view_matrix,
+                CameraType::PERSPECTIVE, // TODO: camera type can be recognised from the camera itsef
                 fragment_shader_main
             );
-        }
+       }
     }
 }
 

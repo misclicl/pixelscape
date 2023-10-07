@@ -15,7 +15,7 @@ struct Program {
     void init(int width, int height);
     void run(ColorBuffer *color_buffer);
     void cleanup();
-    void project_mesh(
+    void project_mesh_old(
         TinyMesh *mesh,
         size_t index,
         ColorBuffer *color_buffer,
