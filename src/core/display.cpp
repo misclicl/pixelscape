@@ -258,13 +258,17 @@ void depth_test(
                     FragmentData shader_data = {
                         .depth = depth_value,
                         .u = u,
-                        .v = v
+                        .v = v,
+                        .normal = fragment_normal
                     };
 
-                    Color result = fragment_shader(&shader_data);
+                    // This is nonsence. The only reason why I pass on struct twice
+                    // is that I don't know to create generic pointers yet, if such
+                    // thing exists. If not, well I need to find a way to pass 
+                    // uniforms as a second argument here
+                    Color result = fragment_shader(&shader_data, &shader_data);
 
                     DrawPixel(p.x, p.y, result);
-                    // Use the 'result' as needed
                 }
 
                 depth_buffer_set(depth_buffer, p.x, p.y, depth_value);

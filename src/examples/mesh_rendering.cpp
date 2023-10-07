@@ -49,7 +49,14 @@ inline float clamp(float val, float min_val, float max_val) {
     return val;
 }
 
-Color fragment_shader_depth(void* data) {
+struct Uniforms {
+    Vec3f light_dir;
+};
+
+
+static Uniforms uniforms = {};
+
+Color fragment_shader_depth(void *data, void *uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
     float depth_color_float = fd->depth * 255;
     uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
@@ -62,19 +69,27 @@ Color fragment_shader_depth(void* data) {
     };
 }
 
-Color fragment_shader_main(void* data) {
+
+Color fragment_shader_main(void* data, void *_uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
-    float depth_color_float = fd->depth * 255;
-    uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
+    Vec3f normal = fd->normal;
 
-    return Color {
-        .r = depth_color,
-        .g = depth_color,
-        .b = depth_color,
-        .a = 255
-    };
+    // float depth_color_float = fd->depth * 255;
+    // uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
+
+    float alignment = -Vec3f::dot(uniforms.light_dir.normalize(), normal);
+    alignment = std::max(alignment, 0.f);
+    auto color = apply_intensity(default_color, {255, 255, 255, 255}, alignment);
+
+    return GetColor(color);
+
+    // return Color {
+    //     .r = depth_color,
+    //     .g = depth_color,
+    //     .b = depth_color,
+    //     .a = 255
+    // };
 }
-
 
 inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_view) {
     Vec4f out = mat4_multiply_vec4(
@@ -92,10 +107,10 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
 
 
 void Program::project_mesh(
-    TinyMesh *mesh, 
-    size_t index, 
-    ColorBuffer *color_buffer, 
-    Matrix4 *mat_world, 
+    TinyMesh *mesh,
+    size_t index,
+    ColorBuffer *color_buffer,
+    Matrix4 *mat_world,
     Matrix4 *mat_view,
     CameraType camera_type
 ) {
@@ -270,7 +285,7 @@ void Program::init(int width, int height) {
         -2.0 * aspect_ratio, 2.0 * aspect_ratio,
         Z_NEAR,
         -15.0,
-        {1.0, 1.0, 3.0}
+        {1.0, 3.0, 3.0}
     );
 
     camera_perspective = perspective_cam_create(
@@ -333,7 +348,8 @@ void Program::run(ColorBuffer *color_buffer) {
         camera_perspective.view_matrix,
         vec4_from_vec3(light.direction, false)
     );
-    Light light_pr = { .direction = vec3_from_vec4(light_direction_projected) };
+
+    uniforms.light_dir = vec3_from_vec4(light_direction_projected);
 
     // Depth pass
     Matrix4 mat_world;
@@ -349,7 +365,7 @@ void Program::run(ColorBuffer *color_buffer) {
         for (int i = 0; i < mesh->shape_count; i++) {
             Program::project_mesh(
                 mesh, i, color_buffer,
-                &mat_world, &camera_orthographic.view_matrix, 
+                &mat_world, &camera_orthographic.view_matrix,
                 CameraType::ORTHOGRAPHIC
             );
 
@@ -359,7 +375,6 @@ void Program::run(ColorBuffer *color_buffer) {
                 depth_buffer_light,
                 face_buffer,
                 face_buffer_size,
-                // nullptr
                 fragment_shader_depth
             );
         }
@@ -383,10 +398,10 @@ void Program::run(ColorBuffer *color_buffer) {
 
             render_mesh(
                 CameraType::PERSPECTIVE,
-                color_buffer, 
-                depth_buffer, 
-                face_buffer, 
-                face_buffer_size, 
+                color_buffer,
+                depth_buffer,
+                face_buffer,
+                face_buffer_size,
                 fragment_shader_main
             );
         }
@@ -439,14 +454,14 @@ void Program::handle_input(float delta_time) {
     if (IsKeyPressed(KEY_ONE)) {
         renderer_state.flags.flip(DRAW_VERTICES);
         log_message(
-            LogLevel::LOG_LEVEL_DEBUG, 
+            LogLevel::LOG_LEVEL_DEBUG,
             "Display vertices: %d", static_cast<int>(renderer_state.flags[DRAW_VERTICES])
         );
     }
     if (IsKeyPressed(KEY_TWO)) {
         renderer_state.flags.flip(DRAW_WIREFRAME);
         log_message(
-            LogLevel::LOG_LEVEL_DEBUG, 
+            LogLevel::LOG_LEVEL_DEBUG,
             "Display wireframe: %d", static_cast<int>(renderer_state.flags[DRAW_WIREFRAME])
         );
     }
