@@ -60,26 +60,17 @@ int main(int argc, char **argv) {
     while (!WindowShouldClose()) {
         snprintf(title, sizeof(title), "pixelscape: FPS: %d - Frame Time: %.4f ms", GetFPS(), 1000.0f/GetFPS());
         SetWindowTitle(title);
-        BeginTextureMode(render_texture);
-        ClearBackground(BLACK);
 
         color_buffer.clear(0x000000ff);
 
-        mesh_rendering.run(&color_buffer);
+        mesh_rendering.update(&color_buffer);
         draw_axis(&color_buffer);
-
-        EndTextureMode();
 
         BeginDrawing();
 
-        ClearBackground(WHITE);
-        DrawTexturePro(
-            render_texture.texture,
-            Rectangle{0, 0, static_cast<float>(render_texture.texture.width), static_cast<float>(render_texture.texture.height)},
-            Rectangle{0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())},
-            Vector2{0, 0},
-            0,
-            WHITE);
+        ClearBackground(BLACK);
+        mesh_rendering.draw(&color_buffer);
+
 
         EndDrawing();
     }

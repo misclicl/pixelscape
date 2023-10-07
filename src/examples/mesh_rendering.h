@@ -13,7 +13,8 @@
 
 struct Program {
     void init(int width, int height);
-    void run(ColorBuffer *color_buffer);
+    void update(ColorBuffer *color_buffer);
+    void draw(ColorBuffer *color_buffer);
     void cleanup();
     void project_mesh_old(
         TinyMesh *mesh,
@@ -35,4 +36,7 @@ struct Program {
     size_t face_buffer_size = 0;
 
     DepthBuffer *depth_buffer = nullptr;
+
+    Image color_buffer_image;
+    Texture color_buffer_texture;
 };

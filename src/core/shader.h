@@ -2,6 +2,7 @@
 
 #include "raylib.h"
 #include "tiny_math.h"
+#include "tiny_color.h"
 
 struct FragmentData {
     float depth;
@@ -9,4 +10,4 @@ struct FragmentData {
     Vec3f normal;
 };
 
-typedef Color (*FragmentShader)(void* data, void* uniforms);
+typedef TinyColor (*FragmentShader)(void* data, void* uniforms);

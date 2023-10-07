@@ -170,6 +170,7 @@ inline static Vec3f calculate_fragment_normal(
 
 void depth_test(
     CameraType camera_type,
+    ColorBuffer *color_buffer,
     DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
     FragmentShader fragment_shader
@@ -264,11 +265,11 @@ void depth_test(
 
                     // This is nonsence. The only reason why I pass on struct twice
                     // is that I don't know to create generic pointers yet, if such
-                    // thing exists. If not, well I need to find a way to pass 
+                    // thing exists. If not, well I need to find a way to pass
                     // uniforms as a second argument here
-                    Color result = fragment_shader(&shader_data, &shader_data);
+                    auto result = fragment_shader(&shader_data, &shader_data);
 
-                    DrawPixel(p.x, p.y, result);
+                    color_buffer->set_pixel(p.x, p.y, result);
                 }
 
                 depth_buffer_set(depth_buffer, p.x, p.y, depth_value);

@@ -30,6 +30,10 @@ static void extract_rgb_from_color(TinyColor color, uint8_t *r, uint8_t *g, uint
     *b = (color >> 8)  & 0xFF;
 }
 
+static TinyColor tiny_color_from_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    return (r << 24) | (g << 16) | (b << 8) | a;
+}
+
 static TinyColor apply_intensity(TinyColor color, Color light_color, float intensity) {
     // Extract individual color components
     uint8_t r = (color >> 24) & 0xFF;
@@ -42,7 +46,8 @@ static TinyColor apply_intensity(TinyColor color, Color light_color, float inten
     b = (uint8_t) fminf(b * intensity, 255.0f);
 
     // Combine the color channels back together
-    return (r << 24) | (g << 16) | (b << 8) | a;
+    // return (r << 24) | (g << 16) | (b << 8) | a;
+    return tiny_color_from_rgba(r, g, b, a);
 }
 
 static TinyColor tiny_color_from_rgb(uint8_t r, uint8_t g, uint8_t b) {

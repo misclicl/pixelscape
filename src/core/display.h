@@ -47,8 +47,11 @@ void draw_triangle(
 
 void depth_test(
     CameraType camera_type,
+    ColorBuffer *color_buffer,
     DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
     FragmentShader fragment_shader
 );
+
 void draw_axis(ColorBuffer *color_buffer);
+

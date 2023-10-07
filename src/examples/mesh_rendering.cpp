@@ -57,22 +57,16 @@ struct Uniforms {
 
 static Uniforms uniforms = {};
 
-Color fragment_shader_depth(void *data, void *uniforms) {
+TinyColor fragment_shader_depth(void *data, void *uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
     float depth_color_float = fd->depth * 255;
     uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
 
-
-    return Color {
-        .r = depth_color,
-        .g = 0,
-        .b = 0,
-        .a = 255
-    };
+    return tiny_color_from_rgb(depth_color, 0, 0);
 }
 
 
-Color fragment_shader_main(void* data, void *_uniforms) {
+TinyColor fragment_shader_main(void* data, void *_uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
     Vec3f normal = fd->normal;
     float depth_value = fd->depth;
@@ -82,18 +76,7 @@ Color fragment_shader_main(void* data, void *_uniforms) {
     alignment = std::max(alignment, 0.f);
     auto color = apply_intensity(default_color, {255, 255, 255, 255}, alignment);
 
-
-    // auto shadow_map_x = .x / fragmentPosLightSpace.w + 1.0f) * 0.5f;
-    // auto shadow_map_y = fragmentPosLightSpace.y / fragmentPosLightSpace.w + 1.0f) * 0.5f;
-
-    return GetColor(color);
-
-    // return Color {
-    //     .r = depth_color,
-    //     .g = depth_color,
-    //     .b = depth_color,
-    //     .a = 255
-    // };
+    return color;
 }
 
 inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_view) {
@@ -213,6 +196,7 @@ static void project_mesh(
 
             depth_test(
                 camera_type,
+                color_buffer,
                 depth_buffer,
                 &triangles[t_idx],
                 fragment_shader
@@ -221,34 +205,16 @@ static void project_mesh(
     }
 }
 
-// TODO: This should become a rendering program that I can attach texture samplers to?
-// Additionally I could set various params as well, such as projection type, shaders, etc
-static void render_mesh(
-    CameraType camera_type,
-
-    ColorBuffer *color_buffer, // TODO: What do I need color buffer for now? Do I really?
-    DepthBuffer *depth_buffer,
-
-    TinyTriangle *face_buffer,
-    size_t face_buffer_size,
-
-    FragmentShader fragment_shader
-
-    // TinyMesh *mesh
-    // TODO: this should become shader input and doesn't really have to be here?
-    // Light *light
-) {
-    for (int i = 0; i < face_buffer_size; i++) {
-        depth_test(
-            camera_type,
-            depth_buffer,
-            &face_buffer[i],
-            fragment_shader
-        );
-    }
-}
-
 void Program::init(int width, int height) {
+    // TODO: store the color buffer itself here as well?
+    this->color_buffer_image = {
+        .data = nullptr,
+        .width = width,
+        .height = height,
+        .mipmaps = 1,
+        .format = PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
+    };
+
     char *cube_obj_path = (char *)"assets/cube.obj";
     char *plane_obj_path = (char *)"assets/plane.obj";
     char *headscan_obj_path = (char *)"assets/headscan.obj";
@@ -335,7 +301,7 @@ void Program::init(int width, int height) {
     );
 }
 
-void Program::run(ColorBuffer *color_buffer) {
+void Program::update(ColorBuffer *color_buffer) {
     float delta = GetFrameTime();
     float elapsed = GetTime();
 
@@ -373,11 +339,11 @@ void Program::run(ColorBuffer *color_buffer) {
 
         for (int i = 0; i < mesh->shape_count; i++) {
             project_mesh(
-                mesh, 
-                i, 
+                mesh,
+                i,
                 color_buffer,
                 depth_buffer_light,
-                &mat_world, 
+                &mat_world,
                 &camera_orthographic.view_matrix,
                 CameraType::ORTHOGRAPHIC,
                 fragment_shader_depth
@@ -409,6 +375,20 @@ void Program::run(ColorBuffer *color_buffer) {
             );
        }
     }
+}
+
+void Program::draw(ColorBuffer *color_buffer) {
+    color_buffer_image.data = (Color*)color_buffer->pixels;
+    color_buffer_texture = LoadTextureFromImage(color_buffer_image);
+
+    DrawTexturePro(
+        color_buffer_texture,
+        Rectangle{0, 0, static_cast<float>(color_buffer->width), -static_cast<float>(color_buffer->height)},
+        Rectangle{0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())},
+        Vector2{0, 0},
+        0,
+        WHITE
+    );
 }
 
 void Program::handle_input(float delta_time) {
