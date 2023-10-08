@@ -32,7 +32,7 @@
 
 static float camera_fov_y = 60 * DEG2RAD;
 static float aspect_ratio = 1; // Gets calculated from color buffer size later
-static TinyColor default_color = 0xafafafff;
+static Color default_color = DARKGRAY;
 static Color light_color = {200, 20, 180, 255};
 
 static DepthBuffer *depth_buffer_light;
@@ -57,26 +57,23 @@ struct Uniforms {
 
 static Uniforms uniforms = {};
 
-TinyColor fragment_shader_depth(void *data, void *uniforms) {
+Color fragment_shader_depth(void *data, void *uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
     float depth_color_float = fd->depth * 255;
     uint8_t depth_color = round(clamp(depth_color_float, 0.0, 255.0));
 
-    return tiny_color_from_rgb(depth_color, 0, 0);
+    return { depth_color, 0, 0, 255 };
 }
 
 
-TinyColor fragment_shader_main(void* data, void *_uniforms) {
+Color fragment_shader_main(void* data, void *_uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
     Vec3f normal = fd->normal;
     float depth_value = fd->depth;
 
 
-    float alignment = -Vec3f::dot(uniforms.light_dir.normalize(), normal);
-    alignment = std::max(alignment, 0.f);
-    auto color = apply_intensity(default_color, {255, 255, 255, 255}, alignment);
-
-    return color;
+    float brightness = -Vec3f::dot(uniforms.light_dir.normalize(), normal);
+    return ColorBrightness(default_color, brightness);
 }
 
 inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_view) {
@@ -350,6 +347,7 @@ void Program::update(ColorBuffer *color_buffer) {
             );
         }
     }
+
     // Main camera
     for (size_t i = 0; i < mesh_count; i++) {
         auto mesh = &mesh_data[i];

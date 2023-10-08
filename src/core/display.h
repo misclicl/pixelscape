@@ -20,7 +20,7 @@ void draw_line(
     ColorBuffer *color_buffer,
     float x0, float y0,
     float x1, float y1,
-    uint32_t color);
+    Color color);
 
 void draw_rectangle(
     ColorBuffer *color_buffer,

@@ -11,13 +11,14 @@
 #include "tiny_color.h"
 #include "tiny_math.h"
 
-const auto default_color = tiny_color_from_rgb(200, 200, 200);
+const Color default_color = DARKGRAY;
 
 void draw_line(
     ColorBuffer *color_buffer,
     float x0, float y0,
     float x1, float y1,
-    TinyColor color) {
+    Color color
+) {
     bool isSteep = false;
 
     if (std::abs(x0 - x1) < std::abs(y0 - y1)) {
@@ -60,9 +61,9 @@ void draw_triangle_wireframe(
     ColorBuffer *color_buffer,
     Vec4f *vertices,
     TinyColor color) {
-    draw_line(color_buffer, vertices[0].x, vertices[0].y, vertices[1].x, vertices[1].y, color);
-    draw_line(color_buffer, vertices[1].x, vertices[1].y, vertices[2].x, vertices[2].y, color);
-    draw_line(color_buffer, vertices[2].x, vertices[2].y, vertices[0].x, vertices[0].y, color);
+    // draw_line(color_buffer, vertices[0].x, vertices[0].y, vertices[1].x, vertices[1].y, color);
+    // draw_line(color_buffer, vertices[1].x, vertices[1].y, vertices[2].x, vertices[2].y, color);
+    // draw_line(color_buffer, vertices[2].x, vertices[2].y, vertices[0].x, vertices[0].y, color);
 }
 
 static void triangle_bb(Vec2f vertices[3], int boundaries[4], int screen_width, int screen_height) {
@@ -96,7 +97,7 @@ inline static float apply_barycentric(float a, float b, float c, float alpha, fl
     return alpha * a + beta * b + gamma * c;
 }
 
-static TinyColor sample_color_from_texture(
+static Color sample_color_from_texture(
     Color* texture_data,
     Image *texture,
     int u, int v,
@@ -110,7 +111,8 @@ static TinyColor sample_color_from_texture(
 
      switch (texture_filter_mode) {
         case TextureFilterMode::NEAREST_NEIGHBOR:
-            return ColorToInt(color);
+            // return ColorToInt(color);
+            return color;
         case TextureFilterMode::BILINEAR: {
             // uv_idx = (v * texture->height) + u + 1;
             // auto color_right = GetPixelColor(texture_data + uv_idx, texture->format);
@@ -127,10 +129,12 @@ static TinyColor sample_color_from_texture(
             //     (color.b + color_left.b + color_right.b + color_down.b + color_up.b) / 5
             // );
             // TODO: fix boundary checks
-            return ColorToInt(color);
+            // return ColorToInt(color);
+            return color;
         }
         default:
-            return tiny_color_from_rgb(0, 0, 0);
+            // return tiny_color_from_rgb(0, 0, 0);
+            return BLACK;
     }
 }
 
@@ -304,7 +308,7 @@ void draw_triangle(
     float u, v; // Stores interpolated values
 
     float alpha, beta, gamma;
-    TinyColor color = 0xffffffff;
+    Color color = BLACK;
     Color *data = diffuse_texture == nullptr ? nullptr : (Color *)diffuse_texture->data;
 
     Vec2f v_screen[3] = {
@@ -371,7 +375,8 @@ void draw_triangle(
                 float intensity = renderer_state->flags[USE_SHADING] ?
                     alignment:
                     1.f;
-                color = apply_intensity(color, {255, 255, 255, 255}, intensity);
+                // color = apply_intensity(color, {255, 255, 255, 255}, intensity);
+                color = RAYWHITE;
 
 
                 bool use_z_buffer_check = renderer_state == nullptr ? false : renderer_state->flags[USE_Z_BUFFER];
@@ -396,19 +401,19 @@ void draw_triangle(
                 // normals_color
                 if (renderer_state->flags[RenderingFlags::USE_FACE_NORMALS]) {
                     // generate fragment normal color
-                    color = tiny_color_from_rgb(
-                        (1 + fragment_normal.x) * 128,
-                        (1 + fragment_normal.y) * 128,
-                        (1 + fragment_normal.z) * 128
-                    );
+                    // color = tiny_color_from_rgb(
+                    //     (1 + fragment_normal.x) * 128,
+                    //     (1 + fragment_normal.y) * 128,
+                    //     (1 + fragment_normal.z) * 128
+                    // );
                 }
 
                 if (renderer_state->flags[RenderingFlags::DRAW_DEPTH_BUFFER]) {
-                    color = tiny_color_from_rgb(
-                        z_buffer_pixel_val,
-                        z_buffer_pixel_val,
-                        z_buffer_pixel_val
-                    );
+                    // color = tiny_color_from_rgb(
+                    //     z_buffer_pixel_val,
+                    //     z_buffer_pixel_val,
+                    //     z_buffer_pixel_val
+                    // );
                 }
 
                 depth_buffer_set(depth_buffer, p.x, p.y, w_inverse_interpl);
@@ -432,7 +437,8 @@ void draw_rectangle(
 
     for (int x = x_start; x < x_end; x++) {
         for (int y = y_start; y < y_end; y++) {
-            color_buffer->set_pixel(x, y, color);
+            // TODO: put back
+            // color_buffer->set_pixel(x, y, color);
         }
     }
 }
@@ -458,6 +464,6 @@ void draw_axis(ColorBuffer *color_buffer) {
         margin,
         1};
 
-    draw_line(color_buffer, origin.x, origin.y, origin.x, origin.y + axis_length, 0x00FF00FF);
-    draw_line(color_buffer, origin.x, origin.y, origin.x + axis_length, origin.y, 0xFF0000FF);
+    // draw_line(color_buffer, origin.x, origin.y, origin.x, origin.y + axis_length, 0x00FF00FF);
+    // draw_line(color_buffer, origin.x, origin.y, origin.x + axis_length, origin.y, 0xFF0000FF);
 }

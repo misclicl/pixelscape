@@ -12,7 +12,6 @@
 #include "core/display.h"
 
 #include "examples/draw_rectangles.h"
-#include "examples/projection.h"
 #include "examples/mesh_rendering.h"
 #include "examples/linear_transformations.h"
 
@@ -46,13 +45,11 @@ int main(int argc, char **argv) {
 
     RenderTexture2D render_texture = LoadRenderTexture(target_render_size_x, target_render_size_y);
 
-    Projection projection;
-
     ColorBuffer color_buffer;
     color_buffer.width = target_render_size_x;
     color_buffer.height = target_render_size_y;
     color_buffer.pixels =
-        (uint32_t *)malloc(target_render_size_x * target_render_size_y * sizeof(unsigned int));
+        (Color *)malloc(target_render_size_x * target_render_size_y * sizeof(Color));
 
     Program mesh_rendering;
     mesh_rendering.init(color_buffer.width, color_buffer.height);
@@ -61,7 +58,7 @@ int main(int argc, char **argv) {
         snprintf(title, sizeof(title), "pixelscape: FPS: %d - Frame Time: %.4f ms", GetFPS(), 1000.0f/GetFPS());
         SetWindowTitle(title);
 
-        color_buffer.clear(0x000000ff);
+        color_buffer.clear(BLACK);
 
         mesh_rendering.update(&color_buffer);
         draw_axis(&color_buffer);

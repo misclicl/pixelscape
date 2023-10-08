@@ -1,22 +1,22 @@
 #ifndef __COLOR_BUFFER__
 #define __COLOR_BUFFER__
 
+#include <raylib.h>
 #include <stdint.h>
 
 struct ColorBuffer {
     int width;
     int height;
-    uint32_t *pixels;
+    Color *pixels;
 
-    void set_pixel(int x, int y, uint32_t color);
-    void set_pixel(int i, uint32_t color);
+    void set_pixel(int x, int y, Color color);
+    void set_pixel(int i, Color color);
 
-    void clear(uint32_t color);
+    void clear(Color color);
     void draw_to_texture();
 
 private:
-    uint32_t *get_buffer_pixel(int x, int y);
-    uint32_t *get_buffer_pixel(int idx);
+    Color *get_buffer_pixel(int x, int y);
+    Color *get_buffer_pixel(int idx);
 };
 #endif
-

@@ -6,8 +6,8 @@
 
 struct FragmentData {
     float depth;
-    float u, v;  // Texture coordinates
+    float u, v;
     Vec3f normal;
 };
 
-typedef TinyColor (*FragmentShader)(void* data, void* uniforms);
+typedef Color (*FragmentShader)(void* data, void* uniforms);
