@@ -15,16 +15,8 @@ struct Program {
     void init(int width, int height);
     void update(ColorBuffer *color_buffer);
     void draw(ColorBuffer *color_buffer);
+    void after_draw();
     void cleanup();
-    void project_mesh_old(
-        TinyMesh *mesh,
-        size_t index,
-        ColorBuffer *color_buffer,
-        Matrix4 *mat_world,
-        Matrix4 *mat_view,
-        CameraType camera_type
-    );
-
 
     void handle_input(float delta_time);
 
@@ -37,6 +29,5 @@ struct Program {
 
     DepthBuffer *depth_buffer = nullptr;
 
-    Image color_buffer_image;
-    Texture color_buffer_texture;
+    RenderTexture2D render_texture;
 };

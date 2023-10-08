@@ -54,22 +54,15 @@ int main(int argc, char **argv) {
     Program mesh_rendering;
     mesh_rendering.init(color_buffer.width, color_buffer.height);
 
+    SetTargetFPS(120);
+
     while (!WindowShouldClose()) {
         snprintf(title, sizeof(title), "pixelscape: FPS: %d - Frame Time: %.4f ms", GetFPS(), 1000.0f/GetFPS());
         SetWindowTitle(title);
 
-        color_buffer.clear(BLACK);
 
         mesh_rendering.update(&color_buffer);
-        draw_axis(&color_buffer);
-
-        BeginDrawing();
-
-        ClearBackground(BLACK);
         mesh_rendering.draw(&color_buffer);
-
-
-        EndDrawing();
     }
 
     UnloadRenderTexture(render_texture);

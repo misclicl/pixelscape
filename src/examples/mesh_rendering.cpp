@@ -202,14 +202,10 @@ static void project_mesh(
 }
 
 void Program::init(int width, int height) {
-    // TODO: store the color buffer itself here as well?
-    this->color_buffer_image = {
-        .data = nullptr,
-        .width = width,
-        .height = height,
-        .mipmaps = 1,
-        .format = PixelFormat::PIXELFORMAT_UNCOMPRESSED_R8G8B8A8
-    };
+    this->render_texture = LoadRenderTexture(width, height);
+    BeginTextureMode(render_texture);
+    ClearBackground(PINK);
+    EndTextureMode();
 
     char *cube_obj_path = (char *)"assets/cube.obj";
     char *plane_obj_path = (char *)"assets/plane.obj";
@@ -298,6 +294,8 @@ void Program::init(int width, int height) {
 }
 
 void Program::update(ColorBuffer *color_buffer) {
+    color_buffer->clear(BLACK);
+
     float delta = GetFrameTime();
     float elapsed = GetTime();
 
@@ -372,20 +370,23 @@ void Program::update(ColorBuffer *color_buffer) {
             );
        }
     }
+
+    BeginTextureMode(render_texture);
+    UpdateTexture(render_texture.texture, color_buffer->pixels);
+    EndTextureMode();
 }
 
 void Program::draw(ColorBuffer *color_buffer) {
-    color_buffer_image.data = (Color*)color_buffer->pixels;
-    color_buffer_texture = LoadTextureFromImage(color_buffer_image);
-
+    BeginDrawing();
     DrawTexturePro(
-        color_buffer_texture,
+        render_texture.texture,
         Rectangle{0, 0, static_cast<float>(color_buffer->width), -static_cast<float>(color_buffer->height)},
         Rectangle{0, 0, static_cast<float>(GetScreenWidth()), static_cast<float>(GetScreenHeight())},
         Vector2{0, 0},
         0,
         WHITE
     );
+    EndDrawing();
 }
 
 void Program::handle_input(float delta_time) {
@@ -515,6 +516,7 @@ void Program::handle_input(float delta_time) {
 }
 
 void Program::cleanup() {
+    UnloadRenderTexture(this->render_texture);
     depth_buffer_destroy(depth_buffer);
     free(face_buffer);
 }
