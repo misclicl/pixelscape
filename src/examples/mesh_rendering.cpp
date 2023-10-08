@@ -13,7 +13,6 @@
 #include "../core/display.h"
 #include "../core/matrix.h"
 #include "../core/tiny_math.h"
-#include "../core/pipeline.h"
 #include "../core/ps_array.h"
 
 #include "../tooling/logger.h"
