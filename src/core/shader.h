@@ -2,7 +2,6 @@
 
 #include "raylib.h"
 #include "tiny_math.h"
-#include "tiny_color.h"
 
 struct FragmentData {
     float depth;

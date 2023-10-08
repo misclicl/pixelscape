@@ -8,7 +8,6 @@
 #include "display.h"
 #include "raylib.h"
 #include "raymath.h"
-#include "tiny_color.h"
 #include "tiny_math.h"
 
 const Color default_color = DARKGRAY;
@@ -60,10 +59,11 @@ void draw_line(
 void draw_triangle_wireframe(
     ColorBuffer *color_buffer,
     Vec4f *vertices,
-    TinyColor color) {
-    // draw_line(color_buffer, vertices[0].x, vertices[0].y, vertices[1].x, vertices[1].y, color);
-    // draw_line(color_buffer, vertices[1].x, vertices[1].y, vertices[2].x, vertices[2].y, color);
-    // draw_line(color_buffer, vertices[2].x, vertices[2].y, vertices[0].x, vertices[0].y, color);
+    Color color
+) {
+    draw_line(color_buffer, vertices[0].x, vertices[0].y, vertices[1].x, vertices[1].y, color);
+    draw_line(color_buffer, vertices[1].x, vertices[1].y, vertices[2].x, vertices[2].y, color);
+    draw_line(color_buffer, vertices[2].x, vertices[2].y, vertices[0].x, vertices[0].y, color);
 }
 
 static void triangle_bb(Vec2f vertices[3], int boundaries[4], int screen_width, int screen_height) {
@@ -428,7 +428,8 @@ void draw_rectangle(
     Vector2 position,
     int size_x,
     int size_y,
-    TinyColor color) {
+    Color color
+) {
     int x_start = std::max(0, (int)position.x);
     int x_end = std::min(color_buffer->height, (int)position.x + size_x);
 
@@ -438,7 +439,7 @@ void draw_rectangle(
     for (int x = x_start; x < x_end; x++) {
         for (int y = y_start; y < y_end; y++) {
             // TODO: put back
-            // color_buffer->set_pixel(x, y, color);
+            color_buffer->set_pixel(x, y, color);
         }
     }
 }

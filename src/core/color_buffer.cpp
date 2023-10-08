@@ -3,7 +3,6 @@
 #include "raylib.h"
 
 #include "color_buffer.h"
-#include "tiny_color.h"
 
 Color *ColorBuffer::get_buffer_pixel(int x, int y) {
     if (x < 0 || x >= width || y < 0 || y >= height) {

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "tiny_color.h"
+#include <raylib.h>
 #include "tiny_math.h"
 #include <vector>
 
@@ -10,7 +10,6 @@
 // Stores indices
 struct TinyFace {
     int indices[3] = {};
-    TinyColor color;
 };
 
 // Stores values

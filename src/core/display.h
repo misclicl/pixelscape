@@ -7,7 +7,6 @@
 
 #include "color_buffer.h"
 #include "depth_buffer.h"
-#include "tiny_color.h"
 #include "tiny_math.h"
 #include "mesh.h"
 #include "camera.h"
@@ -27,12 +26,12 @@ void draw_rectangle(
     Vector2 position,
     int size_x,
     int size_y,
-    uint32_t color);
+    Color color);
 
 void draw_triangle_wireframe(
     ColorBuffer *color_buffer,
     Vec4f *vertices,
-    TinyColor color
+    Color color
 );
 
 void draw_triangle(
