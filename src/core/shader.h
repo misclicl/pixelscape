@@ -4,6 +4,7 @@
 #include "tiny_math.h"
 
 struct FragmentData {
+    float x, y, z;
     float depth;
     float u, v;
     Vec3f normal;

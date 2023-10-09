@@ -50,6 +50,7 @@ inline float clamp(float val, float min_val, float max_val) {
 // TODO: this should live in the gl program state
 struct Uniforms {
     Vec3f light_dir;
+    Matrix4 light_vp;
 };
 
 
@@ -68,7 +69,26 @@ Color fragment_shader_main(void* data, void *_uniforms) {
     FragmentData* fd = static_cast<FragmentData*>(data);
     Vec3f normal = fd->normal;
     float depth_value = fd->depth;
+    float x = fd->x;
+    float y = fd->y;
+    float z = fd->z;
 
+    auto half_height = depth_buffer_light->height / 2;
+    auto half_width = depth_buffer_light->width / 2;
+
+    int shadow_x = x * half_width;
+    int shadow_y = y * half_height;
+
+    shadow_x += half_width;
+    shadow_y += half_height;
+
+    auto value = buffer_pixel_get(depth_buffer_light, shadow_x, shadow_y);
+
+    float bias = 0.01;
+
+    if (value != nullptr && *value - bias > z) {
+       return DARKGRAY;
+    }
 
     float brightness = -Vec3f::dot(uniforms.light_dir.normalize(), normal);
     return ColorBrightness(default_color, brightness);
@@ -104,7 +124,7 @@ static void project_mesh(
     int target_half_width = color_buffer->width / 2;
     int target_half_height = color_buffer->height / 2;
 
-    Vec4f v_view[3];
+    Vec4f v_projected[3];
     Vec3f normals[3];
 
     auto mat_inversed = inverse_matrix(mat_view);
@@ -113,90 +133,88 @@ static void project_mesh(
     for (int i = 0; i < mesh->shapes[shape_idx].face_count; i++) {
         TinyFace *face = &(mesh->shapes[shape_idx].faces[i]);
 
-        // model -> view
         for (int j = 0; j < 3; j++) {
-            v_view[j] = transform_model_view(mesh->vertices[face->indices[j]].position, mat_world, mat_view);
+            auto view = transform_model_view(mesh->vertices[face->indices[j]].position, mat_world, mat_view);
+
+            Vec4f projected;
+
+            if (camera_type == CameraType::PERSPECTIVE) {
+                projected = mat4_multiply_projection_vec4(
+                    camera_perspective.projection_matrix,
+                    view);
+            } else {
+                projected = mat4_multiply_projection_vec4(
+                    camera_orthographic.projection_matrix,
+                    view);
+            }
+
+            v_projected[j] = {
+                (projected.x * target_half_width) + target_half_width,
+                (projected.y * target_half_height) + target_half_height,
+                projected.z, // z must be in NDC
+                projected.w,
+            };
+
+
+            // not important
             normals[j] = vec3_from_vec4(mat4_multiply_vec4(
                 mat_view_tr_inv,
                 vec4_from_vec3(mesh->vertices[face->indices[j]].normal, false)
             ));
         }
 
-        // SECTION: backface culling
-        // auto triangle_normal = get_triangle_normal(v_view);
-        // TODO: put back, now it seems to work incorrect with orhographic projection
-        // if (renderer_state.flags[CULL_BACKFACE]) {
-            // Vec3f camera_ray = -vec3_from_vec4(v_view[0]);
-            // float dot_normal_cam = Vec3f::dot(camera_ray, triangle_normal);
-            //
-            // if (dot_normal_cam < 0.f) {
-            //     continue;
-            // }
-        // }
-        // SECTION_END
-
-        // TODO: define in the begining and write data here right away
-        TinyPolygon polygon = polygon_from_triangle(
-            v_view[0],
-            v_view[1],
-            v_view[2],
-            mesh->vertices[face->indices[0]].texcoords,
-            mesh->vertices[face->indices[1]].texcoords,
-            mesh->vertices[face->indices[2]].texcoords,
-            normals[0],
-            normals[1],
-            normals[2]
-        );
-
-        // Clip the polygon
-        if (camera_type == CameraType::PERSPECTIVE) {
-            clip_polygon(&polygon, clipping_planes_persp);
-        } else {
-            clip_polygon(&polygon, clipping_planes_ortho);
-        }
-
-        // Triangulate the polygon
-        TinyTriangle triangles[POLYGON_MAX_TRIANGLES] = {};
-        size_t triangle_count = 0;
-
-        triangulate_polygon(&polygon, triangles, &triangle_count);
-
-        for (int t_idx = 0; t_idx < triangle_count; t_idx++) {
-            for (int v_idx = 0; v_idx < 3; v_idx++) {
-                // This gives me the image space or NDC
-                auto triangle_position = triangles[t_idx].vertices[v_idx].position;
-
-                Vec4f v_projected;
-
-                if (camera_type == CameraType::PERSPECTIVE) {
-                    v_projected = mat4_multiply_projection_vec4(
-                        camera_perspective.projection_matrix,
-                        triangle_position
-                    );
-                } else {
-                    v_projected = mat4_multiply_projection_vec4(
-                        camera_orthographic.projection_matrix,
-                        triangle_position
-                    );
+        TinyTriangle triangle = {
+            .vertices = {
+                {
+                    .position = v_projected[0],
+                    .texcoords = mesh->vertices[face->indices[0]].texcoords,
+                    .normal = normals[0]
+                },
+                {
+                    .position = v_projected[1],
+                    .texcoords = mesh->vertices[face->indices[1]].texcoords,
+                    .normal = normals[1]
+                },
+                {
+                    .position = v_projected[2],
+                    .texcoords = mesh->vertices[face->indices[2]].texcoords,
+                    .normal = normals[2]
                 }
-
-                // In-camera view
-                triangles[t_idx].vertices[v_idx].position = {
-                    (v_projected.x * target_half_width) + target_half_width,
-                    (v_projected.y * target_half_height) + target_half_height,
-                    v_projected.z, // z must be in NDC
-                    v_projected.w,
-                };
             }
+        };
 
-            depth_test(
-                camera_type,
-                color_buffer,
-                depth_buffer,
-                &triangles[t_idx],
-                fragment_shader
-            );
+        TinyTriangle triangle_original = {
+            .vertices = {
+                {
+                    .position = mesh->vertices[face->indices[0]].position,
+                },
+                {
+                    .position = mesh->vertices[face->indices[1]].position,
+                },
+                {
+                    .position = mesh->vertices[face->indices[2]].position,
+                }
+            }
+        };
+
+        // light thing
+        for (int v_idx = 0; v_idx < 3; v_idx++) {
+            auto temp = transform_model_view(mesh->vertices[face->indices[v_idx]].position, mat_world, &camera_orthographic.view_matrix);
+            auto temp2 = mat4_multiply_projection_vec4(
+                    camera_orthographic.projection_matrix,
+                    temp);
+
+            triangle_original.vertices[v_idx].position = temp2;
         }
+
+        depth_test(
+            camera_type,
+            color_buffer,
+            depth_buffer,
+            &triangle,
+            &triangle_original,
+            fragment_shader
+        );
     }
 }
 
@@ -237,18 +255,13 @@ void Program::init(int width, int height) {
     auto plane_mesh = ps_load_mesh(plane_obj_path, plane_textures);
     // auto p_body_mesh = ps_load_mesh(p_body_obj_path, p_body_textures);
 
-    medic_mesh->translation.y = -1.0f;
-    plane_mesh->translation.y = -1.0f;
-    // medic_mesh->translation.x = -1.0f;
-
-    // p_body_mesh->translation.y = -1.0f;
-    // p_body_mesh->translation.x = 1.0f;
 
     aspect_ratio = static_cast<float>(height) / width;
 
+    auto view_width = 5.0;
     camera_orthographic = orthographic_cam_create(
-        2.0, -2.0,
-        -2.0 * aspect_ratio, 2.0 * aspect_ratio,
+        view_width, -view_width,
+        -view_width * aspect_ratio, view_width * aspect_ratio,
         Z_NEAR,
         -15.0,
         {1.0, 3.0, 3.0}
@@ -259,7 +272,7 @@ void Program::init(int width, int height) {
         aspect_ratio,
         Z_NEAR,
         Z_FAR,
-        {0.0, 0.0f, 3.0f}
+        {0.0, 1.0f, 10.0f}
     );
 
     light.direction = { 1.0f, -1.0f, -0.5f };
@@ -318,6 +331,7 @@ void Program::update(ColorBuffer *color_buffer) {
     );
 
     uniforms.light_dir = vec3_from_vec4(light_direction_projected);
+    uniforms.light_vp = mat4_multiply(camera_orthographic.projection_matrix, camera_orthographic.view_matrix);
 
     // Depth pass
     Matrix4 mat_world;

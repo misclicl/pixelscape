@@ -49,6 +49,7 @@ void depth_test(
     ColorBuffer *color_buffer,
     DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
+    TinyTriangle *triangle_original,
     FragmentShader fragment_shader
 );
 

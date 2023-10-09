@@ -177,6 +177,125 @@ void depth_test(
     ColorBuffer *color_buffer,
     DepthBuffer *depth_buffer,
     TinyTriangle *triangle,
+    TinyTriangle *triangle_original,
+    FragmentShader fragment_shader
+) {
+    int target_width = depth_buffer->width;
+    int target_height = depth_buffer->height;
+
+    int boundaries[4];
+    Vec2f v_screen[3] = {
+        {triangle->vertices[0].position.x, triangle->vertices[0].position.y},
+        {triangle->vertices[1].position.x, triangle->vertices[1].position.y},
+        {triangle->vertices[2].position.x, triangle->vertices[2].position.y},
+    };
+    triangle_bb(v_screen, boundaries, target_width, target_height);
+
+    Vec2f p; // Current pixel
+    float alpha, beta, gamma;
+
+    float w_inverse0 = 1 / triangle->vertices[0].position.w;
+    float w_inverse1 = 1 / triangle->vertices[1].position.w;
+    float w_inverse2 = 1 / triangle->vertices[2].position.w;
+
+    float depth_value;
+    float intensity = 1.0f;
+
+    for (p.x = boundaries[0]; p.x <= boundaries[1]; p.x++) {
+        for (p.y = boundaries[2]; p.y <= boundaries[3]; p.y++) {
+            barycentric_coords(v_screen, {p.x, p.y}, &alpha, &beta, &gamma);
+
+            if (alpha >= 0 && beta >= 0 && gamma >= 0) {
+                auto w_inverse_interpl = apply_barycentric(
+                    w_inverse0,
+                    w_inverse1,
+                    w_inverse2,
+                    alpha, beta, gamma);
+
+                switch (camera_type) {
+                    case CameraType::ORTHOGRAPHIC:
+                        depth_value = apply_barycentric(
+                            triangle->vertices[0].position.z * w_inverse0,
+                            triangle->vertices[1].position.z * w_inverse1,
+                            triangle->vertices[2].position.z * w_inverse2,
+                            alpha, beta, gamma
+                        );
+
+                        depth_value /= w_inverse_interpl;
+                        break;
+                    case CameraType::PERSPECTIVE:
+                        depth_value = w_inverse_interpl;
+                        break;
+                }
+
+                auto depth_buffer_value = *buffer_pixel_get(depth_buffer, p.x, p.y);
+
+                if (depth_value < depth_buffer_value) {
+                    continue;
+                }
+
+                // SECTION: Normals
+                // Calculate fragment normal vertor
+                Vec3f fragment_normal = calculate_fragment_normal(
+                    triangle,
+                    w_inverse0, w_inverse1, w_inverse2,
+                    w_inverse_interpl,
+                    alpha, beta, gamma
+                );
+                // SECTION_END
+
+                auto x = apply_barycentric(
+                    triangle_original->vertices[0].position.x * w_inverse0,
+                    triangle_original->vertices[1].position.x * w_inverse1,
+                    triangle_original->vertices[2].position.x * w_inverse2,
+                    alpha, beta, gamma
+                );
+
+                auto y = apply_barycentric(
+                    triangle_original->vertices[0].position.y * w_inverse0,
+                    triangle_original->vertices[1].position.y * w_inverse1,
+                    triangle_original->vertices[2].position.y * w_inverse2,
+                    alpha, beta, gamma
+                );
+                auto z = apply_barycentric(
+                    triangle_original->vertices[0].position.z * w_inverse0,
+                    triangle_original->vertices[1].position.z * w_inverse1,
+                    triangle_original->vertices[2].position.z * w_inverse2,
+                    alpha, beta, gamma
+                );
+                x /= w_inverse_interpl;
+                y /= w_inverse_interpl;
+                z /= w_inverse_interpl;
+
+                if (fragment_shader) {
+                    FragmentData shader_data = {
+                        .x = x,
+                        .y = y,
+                        .z = z,
+                        .depth = depth_value,
+                        .normal = fragment_normal
+                    };
+
+                    // This is nonsence. The only reason why I pass on struct twice
+                    // is that I don't know to create generic pointers yet, if such
+                    // thing exists. If not, well I need to find a way to pass
+                    // uniforms as a second argument here
+                    auto result = fragment_shader(&shader_data, &shader_data);
+
+                    // color_buffer->set_pixel(p.x, p.y, Color { .r = (unsigned char)(z * 255), .a = 255 });
+                    color_buffer->set_pixel(p.x, p.y, result);
+                }
+
+                depth_buffer_set(depth_buffer, p.x, p.y, depth_value);
+            }
+        }
+    }
+}
+void depth_test_old(
+    CameraType camera_type,
+    ColorBuffer *color_buffer,
+    DepthBuffer *depth_buffer,
+    TinyTriangle *triangle,
     FragmentShader fragment_shader
 ) {
     int target_width = depth_buffer->width;
