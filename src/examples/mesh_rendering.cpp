@@ -91,6 +91,7 @@ Color fragment_shader_main(void* data, void *_uniforms) {
     }
 
     float brightness = -Vec3f::dot(uniforms.light_dir.normalize(), normal);
+    brightness = brightness < 0 ? 0 : brightness;
     return ColorBrightness(default_color, brightness);
 }
 
@@ -108,6 +109,31 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
     return out;
 };
 
+/*
+Example vertex shader:
+
+..define fs_in
+
+void main() {
+    vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
+    vs_out.Normal = transpose(inverse(mat3(model))) * aNormal;
+    vs_out.TexCoords = aTexCoords;
+    vs_out.FragPosLightSpace = lightSpaceMatrix * vec4(vs_out.FragPos, 1.0);
+    gl_Position = projection * view * vec4(vs_out.FragPos, 1.0);
+}
+
+From the example, it's evident that transformations are applied per-vertex.
+Before invoking the fragment shader, the graphics pipeline processes each vertex.
+
+Main steps in the rendering pipeline:
+- Vertex shader: processes and transforms vertex attributes.
+- Clipping: discards or truncates geometry outside the viewing volume. This only
+  applies to gl_Position linked triangles
+- Perspective division and viewport transformation: converts clip space to normalized
+  device coordinates (NDC) and then to screen space.
+- Rasterization: converts primitives to fragments.
+- Fragment shader: computes the final color of each fragment.
+*/
 
 static void project_mesh(
     TinyMesh *mesh,
@@ -124,11 +150,9 @@ static void project_mesh(
     int target_half_width = color_buffer->width / 2;
     int target_half_height = color_buffer->height / 2;
 
-    Vec4f v_projected[3];
-    Vec3f normals[3];
-
     auto mat_inversed = inverse_matrix(mat_view);
-    Matrix4 mat_view_tr_inv = transpose_matrix(&mat_inversed);
+    auto mat_view_tr_inv = transpose_matrix(&mat_inversed);
+    TinyTriangle projected_triangle;
 
     for (int i = 0; i < mesh->shapes[shape_idx].face_count; i++) {
         TinyFace *face = &(mesh->shapes[shape_idx].faces[i]);
@@ -148,71 +172,42 @@ static void project_mesh(
                     view);
             }
 
-            v_projected[j] = {
+            projected_triangle.vertices[j].position = {
                 (projected.x * target_half_width) + target_half_width,
                 (projected.y * target_half_height) + target_half_height,
                 projected.z, // z must be in NDC
                 projected.w,
             };
 
-
-            // not important
-            normals[j] = vec3_from_vec4(mat4_multiply_vec4(
+            projected_triangle.vertices[j].normal = vec3_from_vec4(mat4_multiply_vec4(
                 mat_view_tr_inv,
-                vec4_from_vec3(mesh->vertices[face->indices[j]].normal, false)
-            ));
+                vec4_from_vec3(mesh->vertices[face->indices[j]].normal, false)));
+
+            projected_triangle.vertices[j].texcoords = mesh->vertices[face->indices[2]].texcoords;
         }
 
-        TinyTriangle triangle = {
-            .vertices = {
-                {
-                    .position = v_projected[0],
-                    .texcoords = mesh->vertices[face->indices[0]].texcoords,
-                    .normal = normals[0]
-                },
-                {
-                    .position = v_projected[1],
-                    .texcoords = mesh->vertices[face->indices[1]].texcoords,
-                    .normal = normals[1]
-                },
-                {
-                    .position = v_projected[2],
-                    .texcoords = mesh->vertices[face->indices[2]].texcoords,
-                    .normal = normals[2]
-                }
-            }
-        };
 
-        TinyTriangle triangle_original = {
-            .vertices = {
-                {
-                    .position = mesh->vertices[face->indices[0]].position,
-                },
-                {
-                    .position = mesh->vertices[face->indices[1]].position,
-                },
-                {
-                    .position = mesh->vertices[face->indices[2]].position,
-                }
-            }
-        };
+        TinyTriangle projected_triangle_light = {};
 
-        // light thing
+        // this must go to vertex shader
         for (int v_idx = 0; v_idx < 3; v_idx++) {
-            auto temp = transform_model_view(mesh->vertices[face->indices[v_idx]].position, mat_world, &camera_orthographic.view_matrix);
-            auto temp2 = mat4_multiply_projection_vec4(
-                    camera_orthographic.projection_matrix,
-                    temp);
+            auto vertex_projected_light = transform_model_view(
+                mesh->vertices[face->indices[v_idx]].position,
+                mat_world,
+                &camera_orthographic.view_matrix);
+            vertex_projected_light = mat4_multiply_projection_vec4(
+                camera_orthographic.projection_matrix,
+                vertex_projected_light);
 
-            triangle_original.vertices[v_idx].position = temp2;
+            projected_triangle_light.vertices[v_idx].position = vertex_projected_light;
         }
 
         depth_test(
             camera_type,
             color_buffer,
             depth_buffer,
-            &triangle,
-            &triangle_original,
+            &projected_triangle,
+            &projected_triangle_light,
             fragment_shader
         );
     }
@@ -246,15 +241,20 @@ void Program::init(int width, int height) {
         "assets/medic-face-diffuse.png",
         "assets/medic-body-diffuse.png",
     };
-    // std::vector<std::string> p_body_textures = {
-    //     "assets/p-body/shell-2.png",
-    // };
+    std::vector<std::string> p_body_textures = {
+        "assets/p-body/shell-2.png",
+    };
 
     auto medic_mesh = ps_load_mesh(medic_obj_path, medic_textures);
     std::vector<std::string> plane_textures = {};
     auto plane_mesh = ps_load_mesh(plane_obj_path, plane_textures);
-    // auto p_body_mesh = ps_load_mesh(p_body_obj_path, p_body_textures);
+    auto p_body_mesh = ps_load_mesh(p_body_obj_path, p_body_textures);
 
+
+    medic_mesh->scale.x = 2;
+    medic_mesh->scale.y = 2;
+    medic_mesh->scale.z = 2;
+    medic_mesh->translation.x = 2;
 
     aspect_ratio = static_cast<float>(height) / width;
 
@@ -264,7 +264,7 @@ void Program::init(int width, int height) {
         -view_width * aspect_ratio, view_width * aspect_ratio,
         Z_NEAR,
         -15.0,
-        {1.0, 3.0, 3.0}
+        {3.0, 3.0, 3.0}
     );
 
     camera_perspective = perspective_cam_create(
@@ -275,7 +275,9 @@ void Program::init(int width, int height) {
         {0.0, 1.0f, 10.0f}
     );
 
-    light.direction = { 1.0f, -1.0f, -0.5f };
+
+    light.direction =  camera_orthographic.target - camera_orthographic.position;
+    light.direction = light.direction.normalize();
 
     depth_buffer_light = depth_buffer_create(width, height, -10000);
     depth_buffer = depth_buffer_create(width, height, -10000);
@@ -353,6 +355,7 @@ void Program::update(ColorBuffer *color_buffer) {
                 &mat_world,
                 &camera_orthographic.view_matrix,
                 CameraType::ORTHOGRAPHIC,
+                // nullptr
                 fragment_shader_depth
             );
         }
@@ -479,7 +482,7 @@ void Program::handle_input(float delta_time) {
     }
 
     // // SECTION: Camera position
-    float camera_movement_speed = 1.0f;
+    float camera_movement_speed = 3.0f;
     Vec3f up = {0, 1, 0};
 
     if (IsKeyDown(KEY_W)) {

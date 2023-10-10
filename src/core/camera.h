@@ -27,7 +27,7 @@ struct PSCameraPerspective {
 struct PSCameraOthographic {
     Vec3f position;
     Vec3f initial_direction;
-    Vec3f direction;
+    Vec3f target;
 
     float left;
     float right;

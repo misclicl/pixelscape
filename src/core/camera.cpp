@@ -42,7 +42,8 @@ PSCameraOthographic orthographic_cam_create(
     PSCameraOthographic camera = {};
 
     camera.position = position;
-    camera.initial_direction = {0.0f, 0.0f, 0.0f};
+    camera.initial_direction = {0.0f, 0.0f, -1.0f};
+    camera.target = camera.initial_direction;
 
     camera.left = left;
     camera.right = right;
@@ -76,7 +77,7 @@ void perspective_cam_update(PSCameraPerspective *camera) {
 }
 
 void orthographic_cam_update(PSCameraOthographic *camera) {
-    Vec3f target = {0.0f, 0.0f, -1.0f}; // TODO: allow to define the target from the outside
+    camera->target = camera->initial_direction; // TODO: allow to define the target from the outside
     Vec3f up = {0.0f, 0.1f, 0.0f};
 
     camera->projection_matrix = mat4_get_orthographic_projection(
@@ -87,7 +88,7 @@ void orthographic_cam_update(PSCameraOthographic *camera) {
 
     camera->view_matrix = mat4_look_at(
         camera->position,
-        target,
+        camera->target,
         up
     );
 }
