@@ -47,7 +47,8 @@ inline float clamp(float val, float min_val, float max_val) {
     return val;
 }
 
-// TODO: this should live in the gl program state
+// TODO: this s§hould live in the gl program state
+// REMOVE
 struct Uniforms {
     Vec3f light_dir;
     Matrix4 light_vp;
@@ -109,8 +110,72 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
     return out;
 };
 
+struct VsOut {
+    Vec3f normal;
+    Vec2f tex_coords;
+    Vec4f frag_pos;
+    Vec4f frag_pos_light_space;
+};
+
+struct Attribs {
+    Vec4f position;
+    Vec3f normal;
+    Vec2f tex_coords;
+};
+
+struct Uniforms_ {
+    Matrix4 view_projection_mat;
+    Matrix4 view_projection_mat_light;
+
+    Matrix4 transposed_inverse_mat;
+
+    Matrix4 projection;
+    Matrix4 view;
+    Matrix4 model;
+};
+
+Uniforms_ uniforms_ = {};
+
+VsOut vertex_shader(void* data) {
+    VertexShaderAttributes* attrs = static_cast<VertexShaderAttributes*>(data);
+    Matrix4 mvp = mat4_multiply(uniforms_.model, uniforms_.view_projection_mat);
+
+    auto position = mat4_multiply_vec4(mvp, attrs->position);
+
+    Vec3f normal = vec3_from_vec4(mat4_multiply_vec4(
+        uniforms_.transposed_inverse_mat,
+        vec4_from_vec3(attrs->normal, false))
+    );
+    Vec2f tex_coords = attrs->tex_coords;
+
+
+    Matrix4 mvp_light = mat4_multiply(uniforms_.model, uniforms_.view_projection_mat_light);
+    auto position_light = mat4_multiply_vec4(mvp_light, attrs->position);
+
+    if (position_light.w != 0) {
+        position_light.x /= position_light.w;
+        position_light.y /= position_light.w;
+        position_light.z /= position_light.w;
+    }
+    //  auto vertex_projected_light = transform_model_view(
+    //         mesh->vertices[face->indices[v_idx]].position,
+    //         mat_world,
+    //         &camera_orthographic.view_matrix);
+    //     vertex_projected_light = mat4_multiply_projection_vec4(
+    //         camera_orthographic.projection_matrix,
+    //         vertex_projected_light);
+    //     projected_triangle_light.vertices[v_idx].position = vertex_projected_light;
+
+    return {
+        .frag_pos = position,
+        .frag_pos_light_space = position_light,
+        .normal = normal,
+        .tex_coords = tex_coords
+    };
+};
+
 /*
-Example vertex shader:
+An example of vertex shader:
 
 ..define fs_in
 
@@ -135,13 +200,12 @@ Main steps in the rendering pipeline:
 - Fragment shader: computes the final color of each fragment.
 */
 
-static void project_mesh(
+static void render_mesh(
     TinyMesh *mesh,
     size_t shape_idx,
     ColorBuffer *color_buffer,
     DepthBuffer * depth_buffer,
     Matrix4 *mat_world,
-    Matrix4 *mat_view,
     CameraType camera_type,
     FragmentShader fragment_shader
 ) {
@@ -150,46 +214,50 @@ static void project_mesh(
     int target_half_width = color_buffer->width / 2;
     int target_half_height = color_buffer->height / 2;
 
-    auto mat_inversed = inverse_matrix(mat_view);
-    auto mat_view_tr_inv = transpose_matrix(&mat_inversed);
-    TinyTriangle projected_triangle;
+
+    TinyTriangle projected_triangle = {};
+    TinyTriangle projected_triangle_light = {};
+
+    VertexShaderAttributes vertex_attrs;
 
     for (int i = 0; i < mesh->shapes[shape_idx].face_count; i++) {
         TinyFace *face = &(mesh->shapes[shape_idx].faces[i]);
 
         for (int j = 0; j < 3; j++) {
-            auto view = transform_model_view(mesh->vertices[face->indices[j]].position, mat_world, mat_view);
+            // TODO: clipping here
 
-            Vec4f projected;
-
-            if (camera_type == CameraType::PERSPECTIVE) {
-                projected = mat4_multiply_projection_vec4(
-                    camera_perspective.projection_matrix,
-                    view);
-            } else {
-                projected = mat4_multiply_projection_vec4(
-                    camera_orthographic.projection_matrix,
-                    view);
-            }
-
-            projected_triangle.vertices[j].position = {
-                (projected.x * target_half_width) + target_half_width,
-                (projected.y * target_half_height) + target_half_height,
-                projected.z, // z must be in NDC
-                projected.w,
+            VertexShaderAttributes va = {
+                .position = mesh->vertices[face->indices[j]].position,
+                .normal = mesh->vertices[face->indices[j]].normal,
+                .tex_coords = mesh->vertices[face->indices[j]].texcoords
             };
 
-            projected_triangle.vertices[j].normal = vec3_from_vec4(mat4_multiply_vec4(
-                mat_view_tr_inv,
-                vec4_from_vec3(mesh->vertices[face->indices[j]].normal, false)));
+            auto res = vertex_shader(&va);
 
-            projected_triangle.vertices[j].texcoords = mesh->vertices[face->indices[2]].texcoords;
+            Vec4f position = res.frag_pos;
+
+            if (position.w != 0.f) {
+                position.x /= position.w;
+                position.y /= position.w;
+                position.z /= position.w;
+            }
+
+            position = {
+                (position.x * target_half_width) + target_half_width,
+                (position.y * target_half_height) + target_half_height,
+                position.z, // z must be in NDC
+                position.w,
+            };
+
+
+            projected_triangle.vertices[j].position = position;
+            projected_triangle.vertices[j].normal = res.normal;
+            projected_triangle.vertices[j].texcoords = res.tex_coords;
+
+            projected_triangle_light.vertices[j].position = res.frag_pos_light_space;
         }
 
-
-        TinyTriangle projected_triangle_light = {};
-
-        // this must go to vertex shader
+        // TODO: this must go to vertex shader
         for (int v_idx = 0; v_idx < 3; v_idx++) {
             auto vertex_projected_light = transform_model_view(
                 mesh->vertices[face->indices[v_idx]].position,
@@ -251,10 +319,11 @@ void Program::init(int width, int height) {
     auto p_body_mesh = ps_load_mesh(p_body_obj_path, p_body_textures);
 
 
-    medic_mesh->scale.x = 2;
-    medic_mesh->scale.y = 2;
-    medic_mesh->scale.z = 2;
-    medic_mesh->translation.x = 2;
+    medic_mesh->scale.x = 1.2;
+    medic_mesh->scale.y = 1.2;
+    medic_mesh->scale.z = 1.2;
+    medic_mesh->translation.x = 1;
+    p_body_mesh->translation.x = -1;
 
     aspect_ratio = static_cast<float>(height) / width;
 
@@ -346,17 +415,26 @@ void Program::update(ColorBuffer *color_buffer) {
             mesh->translation
         );
 
+
+        uniforms_.model = mat_world;
+        uniforms_.view = camera_orthographic.view_matrix;
+        uniforms_.projection = camera_orthographic.projection_matrix;
+
+        auto inversed_view_mat = inverse_matrix(&uniforms_.view);
+        uniforms_.transposed_inverse_mat = transpose_matrix(&inversed_view_mat);
+        uniforms_.view_projection_mat = mat4_multiply(uniforms_.view, uniforms_.projection);
+
+
         for (int i = 0; i < mesh->shape_count; i++) {
-            project_mesh(
+            render_mesh(
                 mesh,
                 i,
                 color_buffer,
                 depth_buffer_light,
                 &mat_world,
-                &camera_orthographic.view_matrix,
                 CameraType::ORTHOGRAPHIC,
-                // nullptr
-                fragment_shader_depth
+                nullptr
+                // fragment_shader_depth
             );
         }
     }
@@ -371,16 +449,25 @@ void Program::update(ColorBuffer *color_buffer) {
             mesh->translation
         );
 
+        uniforms_.model = mat_world;
+        uniforms_.view = camera_perspective.view_matrix;
+        uniforms_.projection = camera_perspective.projection_matrix;
+
+        auto inversed_view_mat = inverse_matrix(&uniforms_.view);
+        uniforms_.transposed_inverse_mat = transpose_matrix(&inversed_view_mat);
+        uniforms_.view_projection_mat = mat4_multiply(uniforms_.view, uniforms_.projection);
+
+        uniforms_.view_projection_mat_light = mat4_multiply(camera_orthographic.projection_matrix, camera_orthographic.view_matrix);
+
         // TODO: Im pretty sure I could do this loop inside project mesh, right?
         // or pass down the shape instead
         for (int shape_idx = 0; shape_idx < mesh->shape_count; shape_idx++) {
-            project_mesh(
+            render_mesh(
                 mesh,
                 shape_idx,
                 color_buffer,
                 depth_buffer,
                 &mat_world,
-                &camera_perspective.view_matrix,
                 CameraType::PERSPECTIVE, // TODO: camera type can be recognised from the camera itsef
                 fragment_shader_main
             );

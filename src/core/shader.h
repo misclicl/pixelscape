@@ -11,3 +11,11 @@ struct FragmentData {
 };
 
 typedef Color (*FragmentShader)(void* data, void* uniforms);
+
+struct VertexShaderAttributes {
+    Vec4f position;
+    Vec3f normal;
+    Vec2f tex_coords;
+};
+
+typedef Color (*VertextShader)(void* fs_in);
