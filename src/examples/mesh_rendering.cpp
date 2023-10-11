@@ -35,10 +35,10 @@ static Color light_color = {200, 20, 180, 255};
 
 static DepthBuffer *depth_buffer_light;
 
-static PSCameraPerspective camera_perspective;
-static Plane clipping_planes_persp[6];
-
 static PSCameraOthographic camera_orthographic;
+static PSCameraPerspective camera_perspective;
+
+static Plane clipping_planes_persp[6];
 static Plane clipping_planes_ortho[6];
 
 inline float clamp(float val, float min_val, float max_val) {
@@ -167,10 +167,10 @@ VsOut vertex_shader(void* data) {
     //     projected_triangle_light.vertices[v_idx].position = vertex_projected_light;
 
     return {
-        .frag_pos = position,
-        .frag_pos_light_space = position_light,
         .normal = normal,
-        .tex_coords = tex_coords
+        .tex_coords = tex_coords,
+        .frag_pos = position,
+        .frag_pos_light_space = position_light
     };
 };
 
@@ -207,7 +207,9 @@ static void render_mesh(
     DepthBuffer * depth_buffer,
     Matrix4 *mat_world,
     CameraType camera_type,
-    FragmentShader fragment_shader
+    Vec3f camera_direction,
+    FragmentShader fragment_shader,
+    RenderFlagSet render_flags
 ) {
     size_t face_buffer_idx = 0;
 
@@ -223,18 +225,34 @@ static void render_mesh(
     for (int i = 0; i < mesh->shapes[shape_idx].face_count; i++) {
         TinyFace *face = &(mesh->shapes[shape_idx].faces[i]);
 
-        for (int j = 0; j < 3; j++) {
-            // TODO: clipping here
+        Vec4f positions[3] = {
+            mesh->vertices[face->indices[0]].position,
+            mesh->vertices[face->indices[1]].position,
+            mesh->vertices[face->indices[2]].position
+        };
 
+        if (render_flags[CULL_BACKFACE]) {
+
+            auto triangle_normal = get_triangle_normal(positions);
+            float dot_normal_cam = Vec3f::dot(camera_direction, triangle_normal);
+
+
+            if (dot_normal_cam < 0.f) {
+                continue;
+            }
+        }
+
+        for (int j = 0; j < 3; j++) {
             VertexShaderAttributes va = {
-                .position = mesh->vertices[face->indices[j]].position,
+                .position = positions[j],
                 .normal = mesh->vertices[face->indices[j]].normal,
                 .tex_coords = mesh->vertices[face->indices[j]].texcoords
             };
 
-            auto res = vertex_shader(&va);
 
-            Vec4f position = res.frag_pos;
+            auto transformed_vertex = vertex_shader(&va);
+
+            Vec4f position = transformed_vertex.frag_pos;
 
             if (position.w != 0.f) {
                 position.x /= position.w;
@@ -249,12 +267,11 @@ static void render_mesh(
                 position.w,
             };
 
-
             projected_triangle.vertices[j].position = position;
-            projected_triangle.vertices[j].normal = res.normal;
-            projected_triangle.vertices[j].texcoords = res.tex_coords;
+            projected_triangle.vertices[j].normal = transformed_vertex.normal;
+            projected_triangle.vertices[j].texcoords = transformed_vertex.tex_coords;
 
-            projected_triangle_light.vertices[j].position = res.frag_pos_light_space;
+            projected_triangle_light.vertices[j].position = transformed_vertex.frag_pos_light_space;
         }
 
         // TODO: this must go to vertex shader
@@ -333,7 +350,7 @@ void Program::init(int width, int height) {
         -view_width * aspect_ratio, view_width * aspect_ratio,
         Z_NEAR,
         -15.0,
-        {3.0, 3.0, 3.0}
+        {0.0, 3.0, 3.0}
     );
 
     camera_perspective = perspective_cam_create(
@@ -345,8 +362,6 @@ void Program::init(int width, int height) {
     );
 
 
-    light.direction =  camera_orthographic.target - camera_orthographic.position;
-    light.direction = light.direction.normalize();
 
     depth_buffer_light = depth_buffer_create(width, height, -10000);
     depth_buffer = depth_buffer_create(width, height, -10000);
@@ -389,6 +404,9 @@ void Program::update(ColorBuffer *color_buffer) {
 
     auto mesh_data = ps_get_mesh_data();
     auto mesh_count = ps_get_mesh_count();
+
+    camera_orthographic.position.x = sin(GetTime() * .5) * 2;
+    light.direction = (camera_orthographic.target - camera_orthographic.position).normalize();
 
     Vec3f up= {0.0f, 1.0f, 0.0f};
     Vec3f target = {0.0f, 0.0f, -1.0f};
@@ -433,7 +451,9 @@ void Program::update(ColorBuffer *color_buffer) {
                 depth_buffer_light,
                 &mat_world,
                 CameraType::ORTHOGRAPHIC,
-                nullptr
+                camera_orthographic.target - camera_orthographic.position,
+                nullptr,
+                renderer_state.flags
                 // fragment_shader_depth
             );
         }
@@ -469,7 +489,9 @@ void Program::update(ColorBuffer *color_buffer) {
                 depth_buffer,
                 &mat_world,
                 CameraType::PERSPECTIVE, // TODO: camera type can be recognised from the camera itsef
-                fragment_shader_main
+                camera_perspective.position - camera_perspective.direction,
+                fragment_shader_main,
+                renderer_state.flags
             );
        }
     }
@@ -589,18 +611,14 @@ void Program::handle_input(float delta_time) {
         camera_perspective.position = camera_perspective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_S)) {
-        // camera_orthographic.position = Vec3f { 0.0, 0.0, camera_movement_speed * delta_time }
-        //     + camera_orthographic.position;
         auto forward_velocity = camera_perspective.direction * -1.0f
             * camera_movement_speed * delta_time;
         camera_perspective.position = camera_perspective.position + forward_velocity;
     }
     if (IsKeyDown(KEY_E)) {
-        // camera_orthographic.position.y += camera_movement_speed * delta_time;
         camera_perspective.position.y += camera_movement_speed * delta_time;
     }
     if (IsKeyDown(KEY_Q)) {
-        // camera_orthographic.position.y -= camera_movement_speed * delta_time;
         camera_perspective.position.y -= camera_movement_speed * delta_time;
     }
 

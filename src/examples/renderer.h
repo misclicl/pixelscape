@@ -1,5 +1,4 @@
-#ifndef __RENDERER_H__
-#define __RENDERER_H__
+#pragma once
 
 #include <bitset>
 
@@ -21,10 +20,11 @@ enum RenderingFlags {
     CULL_BACKFACE,
 };
 
+typedef std::bitset<24> RenderFlagSet;
+
 struct RendererState {
     // Indexed with Rendering Flags
-    std::bitset<24> flags;
+    RenderFlagSet flags;
     TextureFilterMode texture_filter_mode;
 };
 
-#endif
