@@ -9,52 +9,54 @@ enum CameraType {
 };
 
 struct PSCameraPerspective {
-    Vec3f position;
     Vec3f initial_direction;
     Vec3f direction;
 
     float fov;
     float aspect;
-    float z_near;
-    float z_far;
     float yaw;
     float pitch;
-
-    Matrix4 view_matrix;
-    Matrix4 projection_matrix;
 };
 
 struct PSCameraOthographic {
-    Vec3f position;
     Vec3f target;
 
     float left;
     float right;
     float top;
     float bottom;
+};
+
+struct PSCamera {
+    CameraType type;
+
+    Vec3f position;
+
     float z_near;
     float z_far;
 
     Matrix4 view_matrix;
     Matrix4 projection_matrix;
+
+    union {
+        PSCameraPerspective persp;
+        PSCameraOthographic ortho;
+    };
 };
 
-PSCameraPerspective perspective_cam_create(
-    float fov_y,
-    float aspect,
-    float z_near,
-    float z_far,
-    Vec3f position
-);
-void perspective_cam_update(PSCameraPerspective *camera);
 
-PSCameraOthographic orthographic_cam_create(
-    float left,
-    float right,
-    float top,
-    float bottom,
-    float z_near,
-    float z_far,
-    Vec3f position
+PSCamera create_camera_orthographic(
+    Vec3f position,
+    float left, float right,
+    float top, float bottom,
+    float z_near, float z_far
 );
-void orthographic_cam_update(PSCameraOthographic *camera);
+
+PSCamera create_camera_perspective(
+    Vec3f position,
+    float fov_y, float aspect,
+    float z_near, float z_far
+);
+
+void update_camera(PSCamera *camera);
+

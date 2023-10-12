@@ -1,15 +1,26 @@
 #pragma once
 
-#include "./tiny_math.h"
-#include "./matrix.h"
-#include "./mesh.h"
+#include "tiny_math.h"
+#include "matrix.h"
+#include "mesh.h"
+#include "shader.h"
+#include "color_buffer.h"
+#include "depth_buffer.h"
+#include "camera.h"
+#include "renderer.h"
 
-typedef void (*VertexShader)(const TinyVertex *input_vertex, Vec3f *output_vertex, const Matrix4 *modelViewProj);
-typedef void (*FragmentShader)(const TinyVertex *interpolated_vertex, Vec4f *output_color);
+void render_mesh(
+    TinyMesh *mesh,
+    size_t shape_idx,
+    ColorBuffer *color_buffer,
+    DepthBuffer * depth_buffer,
+    Matrix4 *mat_world,
+    Vec3f camera_direction,
+    VertextShader vertex_shader,
+    FragmentShader fragment_shader,
+    RenderFlagSet render_flags
+);
 
-struct ShaderProgram {
-    VertexShader vertex_shader;
-    FragmentShader fragment_shader;
-    // Add other shader stages as needed
-    // Add any uniform data shared between shaders
-};
+void psgl_set_projection_type(CameraType type);
+CameraType *psgl_get_projection_type();
+

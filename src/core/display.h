@@ -11,8 +11,8 @@
 #include "mesh.h"
 #include "camera.h"
 #include "shader.h"
+#include "renderer.h"
 
-#include "../examples/renderer.h"
 #include "../light.h"
 
 void draw_line(
@@ -44,6 +44,7 @@ void draw_triangle(
     RendererState *renderer_state
 );
 
+// TODO: this needs to go.
 void depth_test(
     CameraType camera_type,
     ColorBuffer *color_buffer,

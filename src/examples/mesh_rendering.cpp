@@ -14,13 +14,13 @@
 #include "../core/matrix.h"
 #include "../core/tiny_math.h"
 #include "../core/ps_array.h"
+#include "../core/gl.h"
 
 #include "../tooling/logger.h"
 #include "../tooling/render_debug_text.h"
 
 #include "mesh_rendering.h"
 #include "raymath.h"
-#include "renderer.h"
 
 // TODO: Prevent crashing if overflows
 #define FACE_BUFFER_SIZE_LIMIT 250000
@@ -35,8 +35,8 @@ static Color light_color = {200, 20, 180, 255};
 
 static DepthBuffer *depth_buffer_light;
 
-static PSCameraOthographic camera_orthographic;
-static PSCameraPerspective camera_perspective;
+static PSCamera camera_orthographic = {};
+static PSCamera camera_perspective = {};
 
 static Plane clipping_planes_persp[6];
 static Plane clipping_planes_ortho[6];
@@ -110,13 +110,6 @@ inline Vec4f transform_model_view(Vec4f in, Matrix4 *mat_world, Matrix4 *mat_vie
     return out;
 };
 
-struct VsOut {
-    Vec3f normal;
-    Vec2f tex_coords;
-    Vec4f frag_pos;
-    Vec4f frag_pos_light_space;
-};
-
 struct Attribs {
     Vec4f position;
     Vec3f normal;
@@ -174,130 +167,6 @@ VsOut vertex_shader(void* data) {
     };
 };
 
-/*
-An example of vertex shader:
-
-..define fs_in
-
-void main() {
-    vs_out.FragPos = vec3(model * vec4(aPos, 1.0));
-    vs_out.Normal = transpose(inverse(mat3(model))) * aNormal;
-    vs_out.TexCoords = aTexCoords;
-    vs_out.FragPosLightSpace = lightSpaceMatrix * vec4(vs_out.FragPos, 1.0);
-    gl_Position = projection * view * vec4(vs_out.FragPos, 1.0);
-}
-
-From the example, it's evident that transformations are applied per-vertex.
-Before invoking the fragment shader, the graphics pipeline processes each vertex.
-
-Main steps in the rendering pipeline:
-- Vertex shader: processes and transforms vertex attributes.
-- Clipping: discards or truncates geometry outside the viewing volume. This only
-  applies to gl_Position linked triangles
-- Perspective division and viewport transformation: converts clip space to normalized
-  device coordinates (NDC) and then to screen space.
-- Rasterization: converts primitives to fragments.
-- Fragment shader: computes the final color of each fragment.
-*/
-
-static void render_mesh(
-    TinyMesh *mesh,
-    size_t shape_idx,
-    ColorBuffer *color_buffer,
-    DepthBuffer * depth_buffer,
-    Matrix4 *mat_world,
-    CameraType camera_type,
-    Vec3f camera_direction,
-    FragmentShader fragment_shader,
-    RenderFlagSet render_flags
-) {
-    size_t face_buffer_idx = 0;
-
-    int target_half_width = color_buffer->width / 2;
-    int target_half_height = color_buffer->height / 2;
-
-
-    TinyTriangle projected_triangle = {};
-    TinyTriangle projected_triangle_light = {};
-
-    VertexShaderAttributes vertex_attrs;
-
-    for (int i = 0; i < mesh->shapes[shape_idx].face_count; i++) {
-        TinyFace *face = &(mesh->shapes[shape_idx].faces[i]);
-
-        Vec4f positions[3] = {
-            mesh->vertices[face->indices[0]].position,
-            mesh->vertices[face->indices[1]].position,
-            mesh->vertices[face->indices[2]].position
-        };
-
-        if (render_flags[CULL_BACKFACE]) {
-
-            auto triangle_normal = get_triangle_normal(positions);
-            float dot_normal_cam = Vec3f::dot(camera_direction, triangle_normal);
-
-
-            if (dot_normal_cam < 0.f) {
-                continue;
-            }
-        }
-
-        for (int j = 0; j < 3; j++) {
-            VertexShaderAttributes va = {
-                .position = positions[j],
-                .normal = mesh->vertices[face->indices[j]].normal,
-                .tex_coords = mesh->vertices[face->indices[j]].texcoords
-            };
-
-
-            auto transformed_vertex = vertex_shader(&va);
-
-            Vec4f position = transformed_vertex.frag_pos;
-
-            if (position.w != 0.f) {
-                position.x /= position.w;
-                position.y /= position.w;
-                position.z /= position.w;
-            }
-
-            position = {
-                (position.x * target_half_width) + target_half_width,
-                (position.y * target_half_height) + target_half_height,
-                position.z, // z must be in NDC
-                position.w,
-            };
-
-            projected_triangle.vertices[j].position = position;
-            projected_triangle.vertices[j].normal = transformed_vertex.normal;
-            projected_triangle.vertices[j].texcoords = transformed_vertex.tex_coords;
-
-            projected_triangle_light.vertices[j].position = transformed_vertex.frag_pos_light_space;
-        }
-
-        // TODO: this must go to vertex shader
-        for (int v_idx = 0; v_idx < 3; v_idx++) {
-            auto vertex_projected_light = transform_model_view(
-                mesh->vertices[face->indices[v_idx]].position,
-                mat_world,
-                &camera_orthographic.view_matrix);
-            vertex_projected_light = mat4_multiply_projection_vec4(
-                camera_orthographic.projection_matrix,
-                vertex_projected_light);
-
-            projected_triangle_light.vertices[v_idx].position = vertex_projected_light;
-        }
-
-        depth_test(
-            camera_type,
-            color_buffer,
-            depth_buffer,
-            &projected_triangle,
-            &projected_triangle_light,
-            fragment_shader
-        );
-    }
-}
-
 void Program::init(int width, int height) {
     this->render_texture = LoadRenderTexture(width, height);
     BeginTextureMode(render_texture);
@@ -345,22 +214,21 @@ void Program::init(int width, int height) {
     aspect_ratio = static_cast<float>(height) / width;
 
     auto view_width = 5.0;
-    camera_orthographic = orthographic_cam_create(
+    camera_orthographic = create_camera_orthographic(
+        {0.0, 3.0, 3.0},
         view_width, -view_width,
         -view_width * aspect_ratio, view_width * aspect_ratio,
         Z_NEAR,
-        -15.0,
-        {0.0, 3.0, 3.0}
+        -15.0
     );
 
-    camera_perspective = perspective_cam_create(
+    camera_perspective = create_camera_perspective(
+        {0.0, 1.0f, 10.0f},
         camera_fov_y,
         aspect_ratio,
         Z_NEAR,
-        Z_FAR,
-        {0.0, 1.0f, 10.0f}
+        Z_FAR
     );
-
 
 
     depth_buffer_light = depth_buffer_create(width, height, -10000);
@@ -406,13 +274,13 @@ void Program::update(ColorBuffer *color_buffer) {
     auto mesh_count = ps_get_mesh_count();
 
     camera_orthographic.position.x = sin(GetTime() * .5) * 2;
-    light.direction = (camera_orthographic.target - camera_orthographic.position).normalize();
+    light.direction = (camera_orthographic.ortho.target - camera_orthographic.position).normalize();
 
     Vec3f up= {0.0f, 1.0f, 0.0f};
     Vec3f target = {0.0f, 0.0f, -1.0f};
 
-    perspective_cam_update(&camera_perspective);
-    orthographic_cam_update(&camera_orthographic);
+    update_camera(&camera_perspective);
+    update_camera(&camera_orthographic);
 
     Vec4f light_direction_projected = mat4_multiply_vec4(
         camera_perspective.view_matrix,
@@ -422,6 +290,7 @@ void Program::update(ColorBuffer *color_buffer) {
     uniforms.light_dir = vec3_from_vec4(light_direction_projected);
     uniforms.light_vp = mat4_multiply(camera_orthographic.projection_matrix, camera_orthographic.view_matrix);
 
+    psgl_set_projection_type(CameraType::PERSPECTIVE);
     // Depth pass
     Matrix4 mat_world;
     for (size_t i = 0; i < mesh_count; i++) {
@@ -450,8 +319,8 @@ void Program::update(ColorBuffer *color_buffer) {
                 color_buffer,
                 depth_buffer_light,
                 &mat_world,
-                CameraType::ORTHOGRAPHIC,
-                camera_orthographic.target - camera_orthographic.position,
+                camera_orthographic.ortho.target - camera_orthographic.position,
+                vertex_shader,
                 nullptr,
                 renderer_state.flags
                 // fragment_shader_depth
@@ -459,6 +328,7 @@ void Program::update(ColorBuffer *color_buffer) {
         }
     }
 
+    psgl_set_projection_type(CameraType::PERSPECTIVE);
     // Main camera
     for (size_t i = 0; i < mesh_count; i++) {
         auto mesh = &mesh_data[i];
@@ -488,8 +358,8 @@ void Program::update(ColorBuffer *color_buffer) {
                 color_buffer,
                 depth_buffer,
                 &mat_world,
-                CameraType::PERSPECTIVE, // TODO: camera type can be recognised from the camera itsef
-                camera_perspective.position - camera_perspective.direction,
+                camera_perspective.position - camera_perspective.persp.direction,
+                vertex_shader,
                 fragment_shader_main,
                 renderer_state.flags
             );
@@ -577,17 +447,17 @@ void Program::handle_input(float delta_time) {
     }
 
     // SECTION: Camera rotation
-    if (IsKeyDown(KEY_LEFT)) {
-        camera_perspective.yaw += 1.0f * delta_time;
+    if (IsKeyDown(KEY_H)) {
+        camera_perspective.persp.yaw += 1.0f * delta_time;
     }
-    if (IsKeyDown(KEY_RIGHT)) {
-        camera_perspective.yaw -= 1.0f * delta_time;
+    if (IsKeyDown(KEY_L)) {
+        camera_perspective.persp.yaw -= 1.0f * delta_time;
     }
-    if (IsKeyDown(KEY_DOWN)) {
-        camera_perspective.pitch -= 1.0f * delta_time;
+    if (IsKeyDown(KEY_J)) {
+        camera_perspective.persp.pitch -= 1.0f * delta_time;
     }
-    if (IsKeyDown(KEY_UP)) {
-        camera_perspective.pitch += 1.0f * delta_time;
+    if (IsKeyDown(KEY_K)) {
+        camera_perspective.persp.pitch += 1.0f * delta_time;
     }
 
     // // SECTION: Camera position
@@ -597,21 +467,21 @@ void Program::handle_input(float delta_time) {
     if (IsKeyDown(KEY_W)) {
         // camera_orthographic.position =  Vec3f { 0.0, 0.0, -camera_movement_speed * delta_time}
         //     + camera_orthographic.position;
-        auto forward_velocity = camera_perspective.direction * camera_movement_speed * delta_time;
+        auto forward_velocity = camera_perspective.persp.direction * camera_movement_speed * delta_time;
         camera_perspective.position = camera_perspective.position + forward_velocity;
     }
     if (IsKeyDown(KEY_D)) {
-        auto camera_right = Vec3f::cross(camera_perspective.direction, up);
+        auto camera_right = Vec3f::cross(camera_perspective.persp.direction, up);
         auto lateral_velocity = camera_right * camera_movement_speed * delta_time;
         camera_perspective.position = camera_perspective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_A)) {
-        auto camera_right = Vec3f::cross(camera_perspective.direction, up);
+        auto camera_right = Vec3f::cross(camera_perspective.persp.direction, up);
         auto lateral_velocity = camera_right * -1.0 * camera_movement_speed * delta_time;
         camera_perspective.position = camera_perspective.position + lateral_velocity;
     }
     if (IsKeyDown(KEY_S)) {
-        auto forward_velocity = camera_perspective.direction * -1.0f
+        auto forward_velocity = camera_perspective.persp.direction * -1.0f
             * camera_movement_speed * delta_time;
         camera_perspective.position = camera_perspective.position + forward_velocity;
     }
@@ -641,3 +511,4 @@ void Program::cleanup() {
     depth_buffer_destroy(depth_buffer);
     free(face_buffer);
 }
+

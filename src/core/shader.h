@@ -18,4 +18,11 @@ struct VertexShaderAttributes {
     Vec2f tex_coords;
 };
 
-typedef Color (*VertextShader)(void* fs_in);
+struct VsOut {
+    Vec3f normal;
+    Vec2f tex_coords;
+    Vec4f frag_pos;
+    Vec4f frag_pos_light_space;
+};
+
+typedef VsOut (*VertextShader)(void* fs_in);
