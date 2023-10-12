@@ -8,8 +8,8 @@
 #include "../core/mesh.h"
 #include "../core/camera.h"
 #include "../light.h"
+#include "../core/renderer.h"
 
-#include "renderer.h"
 
 struct Program {
     void init(int width, int height);
