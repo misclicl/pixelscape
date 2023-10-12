@@ -11,7 +11,6 @@
 
 void render_mesh(
     TinyMesh *mesh,
-    size_t shape_idx,
     ColorBuffer *color_buffer,
     DepthBuffer * depth_buffer,
     Matrix4 *mat_world,

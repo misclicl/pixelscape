@@ -47,11 +47,10 @@ inline float clamp(float val, float min_val, float max_val) {
     return val;
 }
 
-// TODO: this s§hould live in the gl program state
+// TODO: this should live in the gl program state
 // REMOVE
 struct Uniforms {
     Vec3f light_dir;
-    Matrix4 light_vp;
 };
 
 
@@ -288,7 +287,6 @@ void Program::update(ColorBuffer *color_buffer) {
     );
 
     uniforms.light_dir = vec3_from_vec4(light_direction_projected);
-    uniforms.light_vp = mat4_multiply(camera_orthographic.projection_matrix, camera_orthographic.view_matrix);
 
     psgl_set_projection_type(CameraType::PERSPECTIVE);
     // Depth pass
@@ -312,20 +310,17 @@ void Program::update(ColorBuffer *color_buffer) {
         uniforms_.view_projection_mat = mat4_multiply(uniforms_.view, uniforms_.projection);
 
 
-        for (int i = 0; i < mesh->shape_count; i++) {
-            render_mesh(
-                mesh,
-                i,
-                color_buffer,
-                depth_buffer_light,
-                &mat_world,
-                camera_orthographic.ortho.target - camera_orthographic.position,
-                vertex_shader,
-                nullptr,
-                renderer_state.flags
-                // fragment_shader_depth
-            );
-        }
+        render_mesh(
+            mesh,
+            color_buffer,
+            depth_buffer_light,
+            &mat_world,
+            camera_orthographic.ortho.target - camera_orthographic.position,
+            vertex_shader,
+            nullptr,
+            renderer_state.flags
+            // fragment_shader_depth
+        );
     }
 
     psgl_set_projection_type(CameraType::PERSPECTIVE);
@@ -351,19 +346,16 @@ void Program::update(ColorBuffer *color_buffer) {
 
         // TODO: Im pretty sure I could do this loop inside project mesh, right?
         // or pass down the shape instead
-        for (int shape_idx = 0; shape_idx < mesh->shape_count; shape_idx++) {
-            render_mesh(
-                mesh,
-                shape_idx,
-                color_buffer,
-                depth_buffer,
-                &mat_world,
-                camera_perspective.position - camera_perspective.persp.direction,
-                vertex_shader,
-                fragment_shader_main,
-                renderer_state.flags
-            );
-       }
+        render_mesh(
+            mesh,
+            color_buffer,
+            depth_buffer,
+            &mat_world,
+            camera_perspective.position - camera_perspective.persp.direction,
+            vertex_shader,
+            fragment_shader_main,
+            renderer_state.flags
+        );
     }
 
     BeginTextureMode(render_texture);
